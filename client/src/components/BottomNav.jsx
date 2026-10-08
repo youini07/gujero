@@ -60,8 +60,8 @@ const BottomNav = ({ lang }) => {
 
     const tabs = [
         { id: 'recommend', label: getTranslation(lang, 'bottom_nav_recommend'), path: '/', Icon: IconRecommend },
-        { id: 'brand', label: getTranslation(lang, 'bottom_nav_brand') || '브랜드', path: '/brand', Icon: IconBrand },
         { id: 'vendor', label: '매장', path: '/vendors', Icon: IconVendor },
+        { id: 'brand', label: getTranslation(lang, 'bottom_nav_brand') || '브랜드', path: '/brand', Icon: IconBrand },
         { id: 'category', label: getTranslation(lang, 'bottom_nav_category') || '카테고리', path: '/category', Icon: IconCategory },
         { id: 'lounge', label: getTranslation(lang, 'bottom_nav_mypage') || '마이페이지', path: '/mypage', Icon: IconLounge },
     ];
