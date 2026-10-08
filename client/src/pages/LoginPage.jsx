@@ -5,8 +5,8 @@ const LoginPage = ({ lang }) => {
 
     const handleKakaoLogin = () => {
         const KAKAO_CLIENT_ID = '3c06363b47020b23e4774d22720f79f9';
-        // 프론트엔드 포트 4822용 Redirect URI
-        const REDIRECT_URI = 'http://localhost:4822/api/auth/kakao/callback';
+        // 현재 접속된 도메인(localhost 또는 gujero.com)을 동적으로 사용
+        const REDIRECT_URI = `${window.location.origin}/api/auth/kakao/callback`;
         const KAKAO_AUTH_URL = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code`;
         
         // 실제 카카오 로그인(동의) 화면으로 이동
