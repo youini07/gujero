@@ -35,7 +35,7 @@ export default function VendorListPage({ lang = 'ko' }) {
             className="min-h-screen pb-20 relative bg-cover bg-center bg-fixed"
             style={{ backgroundImage: "url('/stores.jpg')" }}
         >
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-[3px] z-0"></div>
+            <div className="absolute inset-0 bg-white/25 backdrop-blur-[1.5px] z-0"></div>
 
             <div className="relative z-10">
                 <Header />
