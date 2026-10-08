@@ -1221,7 +1221,6 @@ const MyPage = ({ lang }) => {
                 { id: 'admin_coupons', label: '🎟️ 쿠폰관리', icon: '' },
                 { id: 'admin_sales', label: t('admin_tab_sales'), icon: '💰' },
                 { id: 'admin_analytics', label: t('admin_tab_analytics'), icon: '📈' },
-                { id: 'admin_consignment', label: t('admin_tab_consignment'), icon: '🤝', disabled: true },
                 { id: 'profile', label: t('mypage_tab_profile'), icon: '👤' },
             ];
         } else {

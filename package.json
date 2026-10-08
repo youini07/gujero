@@ -5,7 +5,7 @@
     "scripts": {
         "postinstall": "npm install --prefix server",
         "build": "echo 'Using pre-built assets from local. Skipping cloud build.'",
-        "start": "python3 server/migrate_data.py || true && node server/index.js"
+        "start": "node server/index.js"
     },
     "engines": {
         "node": ">=18.0.0"
