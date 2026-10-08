@@ -1723,10 +1723,18 @@ app.get('/api/debug-sync-log', (req, res) => {
 app.get('/api/vendors', async (req, res) => {
     try {
         const query = `
-            SELECT vendor_code, count(*) as cnt 
-            FROM products 
-            WHERE vendor_code IS NOT NULL AND vendor_code != ''
-            GROUP BY vendor_code
+            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt
+            FROM (
+                SELECT vendor_code FROM vendor_profiles
+                UNION
+                SELECT vendor_code FROM products WHERE vendor_code IS NOT NULL AND vendor_code != ''
+            ) v
+            LEFT JOIN (
+                SELECT vendor_code, count(*) as cnt
+                FROM products
+                WHERE vendor_code IS NOT NULL AND vendor_code != ''
+                GROUP BY vendor_code
+            ) p ON v.vendor_code = p.vendor_code
             ORDER BY cnt DESC
         `;
         db.all(query, [], (err, rows) => {
