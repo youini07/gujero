@@ -543,17 +543,18 @@ const CatalogPage = ({ lang }) => {
                     )}
 
                     {vendorProfile && (
+                        <>
+                        <button 
+                            onClick={() => window.location.href = '/vendors'}
+                            className="mb-4 flex items-center gap-2 text-gray-600 hover:text-black font-semibold transition-colors"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            매장 목록으로 돌아가기
+                        </button>
                         <div className="mb-6 animate-fadeIn bg-[#FFFDF9] text-gray-900 rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-amber-900/10">
                             <div className="flex flex-col md:flex-row p-6 md:p-8 gap-6 md:gap-8 items-start md:items-center">
-                                {vendorProfile.logo_url ? (
-                                    <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-xl flex items-center justify-center shadow-inner overflow-hidden shrink-0">
-                                        <img src={vendorProfile.logo_url} alt={vendorProfile.vendor_code} className="w-full h-full object-contain p-2" />
-                                    </div>
-                                ) : (
-                                    <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-800 rounded-xl flex items-center justify-center text-4xl font-black text-gray-500 shrink-0">
-                                        {vendorProfile.vendor_code.substring(0, 2).toUpperCase()}
-                                    </div>
-                                )}
                                 <div className="flex-1">
                                     <h2 className="text-3xl md:text-4xl font-black mb-3 text-gray-900">{vendorProfile.store_name || "상호명 미등록"}</h2>
                                     {vendorProfile.description && (
@@ -571,8 +572,8 @@ const CatalogPage = ({ lang }) => {
                                 </div>
                             </div>
                         </div>
+                        </>
                     )}
-
                     <div className={`flex justify-between items-center mb-6 border-b pb-2 ${isArchive ? 'border-black/10' : 'border-border'}`}>
                         <div className={`flex-1 ${isArchive ? 'py-4' : ''}`}>
                             {isArchive ? (
