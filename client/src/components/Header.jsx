@@ -104,7 +104,7 @@ const Header = ({ lang, setLang }) => {
                     {/* 중앙: 로고 */}
                     <div className="absolute left-1/2 -translate-x-1/2 z-20 flex items-center justify-center pointer-events-none">
                         <a href={`/?lang=${lang}`} className="h-[50px] md:h-[60px] cursor-pointer pointer-events-auto" onClick={() => setIsMobileMenuOpen(false)}>
-                            <img src="/gujero_logo.jpg" alt="Gujero" className="h-full w-auto object-contain" />
+                            <img src="/gujero_logo.jpg" alt="Gujero" className="h-full w-auto object-contain scale-[2]" />
                         </a>
                     </div>
 
