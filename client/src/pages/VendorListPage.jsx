@@ -32,10 +32,10 @@ export default function VendorListPage({ lang = 'ko' }) {
 
     return (
         <div 
-            className="min-h-screen pb-20 relative bg-cover bg-center bg-fixed"
-            style={{ backgroundImage: "url('/stores.jpg')" }}
+            className="min-h-screen pb-20 relative bg-gray-50"
+            
         >
-            <div className="absolute inset-0 bg-white/25 backdrop-blur-[1.5px] z-0"></div>
+            
 
             <div className="relative z-10">
                 <Header />
@@ -65,7 +65,7 @@ export default function VendorListPage({ lang = 'ko' }) {
                                                 e.target.onerror = null; 
                                                 e.target.src = '/stores.jpg'; 
                                             }}
-                                            alt={v.vendor_code}
+                                            alt={v.store_name || v.vendor_code}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
@@ -77,7 +77,7 @@ export default function VendorListPage({ lang = 'ko' }) {
                                     </div>
                                     <div className="p-4 md:p-5 flex flex-col flex-1 overflow-hidden">
                                         <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-1 truncate">
-                                            {v.vendor_code}
+                                            {v.store_name || v.vendor_code}
                                         </h2>
                                         
                                         <div className="flex-1 overflow-hidden flex flex-col justify-center">

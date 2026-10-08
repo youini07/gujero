@@ -555,7 +555,7 @@ const CatalogPage = ({ lang }) => {
                                     </div>
                                 )}
                                 <div className="flex-1">
-                                    <h2 className="text-3xl md:text-4xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-[#ff3366] to-orange-400">{vendorProfile.vendor_code}</h2>
+                                    <h2 className="text-3xl md:text-4xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-[#ff3366] to-orange-400">{vendorProfile.store_name || vendorProfile.vendor_code}</h2>
                                     {vendorProfile.description && (
                                         <p className="text-sm md:text-base text-gray-300 whitespace-pre-wrap mb-5 leading-relaxed">{vendorProfile.description}</p>
                                     )}
@@ -603,7 +603,9 @@ const CatalogPage = ({ lang }) => {
                         </div>
                     </div>
 
-                    {loading ? (
+                    {!loading && products.length === 0 ? (
+                            <div className="text-center py-20 text-gray-500 font-medium">등록된 상품이 없습니다.</div>
+                        ) : loading ? (
                         <div className="flex items-center justify-center h-64">
                             <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
                             <div className="ml-3 font-medium">{getTranslation(lang, 'loading')}</div>

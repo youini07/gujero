@@ -1018,6 +1018,7 @@ db.serialize(() => {
                     `, (err) => {
                         if (err) console.error('[DB] iconic_looks 테이블 생성 에러:', err.message);
                         db.run("ALTER TABLE iconic_looks ADD COLUMN tags TEXT", (err) => {});
+                        db.run("ALTER TABLE vendor_profiles ADD COLUMN store_name TEXT DEFAULT ''", (err) => {});
                         
                         db.run(`
                             CREATE TABLE IF NOT EXISTS vendor_profiles (
@@ -1075,11 +1076,13 @@ app.post('/api/admin/settings', (req, res) => {
 
 const vendorLogoStorage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // 빌드된 client/dist 내부 또는 public 에 따라 달라질 수 있으나, 
-        // 밴드구제거리 서버 구조상 정적 파일로 서빙되는 곳을 사용 (STATIC_ASSETS_PATH 등)
-        const dest = path.join(STATIC_ASSETS_PATH, 'vendors');
+        // Use Railway Volume (or local db folder) to persist uploads
+        const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH ? process.env.RAILWAY_VOLUME_MOUNT_PATH : path.resolve(__dirname, 'db');
+        const dest = path.join(baseDir, 'vendors');
         if (!fs.existsSync(dest)) {
             fs.mkdirSync(dest, { recursive: true });
+
+
         }
         cb(null, dest);
     },
@@ -1090,29 +1093,36 @@ const vendorLogoStorage = multer.diskStorage({
     }
 });
 const vendorLogoUpload = multer({ storage: vendorLogoStorage });
+// Serve the persistent vendor uploads at /static/vendors
+const persistentVendorDir = process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'vendors') : path.join(path.resolve(__dirname, 'db'), 'vendors');
+if (!fs.existsSync(persistentVendorDir)) {
+    fs.mkdirSync(persistentVendorDir, { recursive: true });
+}
+app.use('/static/vendors', express.static(persistentVendorDir, { maxAge: '7d' }));
 
 app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
     const { vendor_code } = req.params;
     db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.json({ vendor_code, description: '', rules: '', logo_url: '' });
+        if (!row) return res.json({ vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
         res.json(row);
     });
 });
 
 app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
     const { vendor_code } = req.params;
-    const { description, rules, logo_url } = req.body;
+    const { store_name, description, rules, logo_url } = req.body;
     
     db.run(
-        `INSERT INTO vendor_profiles (vendor_code, description, rules, logo_url, updated_at) 
-         VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+        `INSERT INTO vendor_profiles (vendor_code, store_name, description, rules, logo_url, updated_at) 
+         VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
          ON CONFLICT(vendor_code) DO UPDATE SET 
+            store_name = excluded.store_name, 
             description = excluded.description,
             rules = excluded.rules,
             logo_url = excluded.logo_url,
             updated_at = datetime('now', 'localtime')`,
-        [vendor_code, description || '', rules || '', logo_url || ''],
+        [vendor_code, store_name || '', description || '', rules || '', logo_url || ''],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, vendor_code });
@@ -1743,7 +1753,7 @@ app.get('/api/debug-sync-log', (req, res) => {
 app.get('/api/vendors', async (req, res) => {
     try {
         const query = `
-            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt, vp.logo_url, vp.description, vp.rules
+            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt, vp.store_name, vp.logo_url, vp.description, vp.rules
             FROM (
                 SELECT vendor_code FROM vendor_profiles
                 UNION

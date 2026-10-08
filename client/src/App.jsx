@@ -82,7 +82,7 @@ function HomeRouter({ lang }) {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   
-  const hasFilter = searchParams.has('category') || searchParams.has('brand') || searchParams.has('search') || searchParams.has('upper_category') || searchParams.has('gender') || searchParams.has('style');
+  const hasFilter = searchParams.has('category') || searchParams.has('brand') || searchParams.has('search') || searchParams.has('upper_category') || searchParams.has('gender') || searchParams.has('style') || searchParams.has('vendor');
   
   if (hasFilter) {
     return <CatalogPage lang={lang} />;

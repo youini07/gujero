@@ -1290,7 +1290,7 @@ const MyPage = ({ lang }) => {
     }, [activeTab, user]);
 
     // --- Vendor Profile State ---
-    const [vendorProfile, setVendorProfile] = useState({ description: '', rules: '', logo_url: '' });
+    const [vendorProfile, setVendorProfile] = useState({ store_name: '', description: '', rules: '', logo_url: '' });
     const [vendorProfileLoading, setVendorProfileLoading] = useState(false);
     const [vendorLogoFile, setVendorLogoFile] = useState(null);
 
@@ -1300,7 +1300,8 @@ const MyPage = ({ lang }) => {
             const res = await fetch(`/api/vendor-profiles/${user.login_id}`);
             const data = await res.json();
             setVendorProfile({
-                description: data.description || '',
+                store_name: data.store_name || '',
+                    description: data.description || '',
                 rules: data.rules || '',
                 logo_url: data.logo_url || ''
             });
