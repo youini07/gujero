@@ -3695,6 +3695,16 @@ const MyPage = ({ lang }) => {
                                     />
                                 </div>
                                 <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-2">상호명 (매장명)</label>
+                                    <input 
+                                        type="text"
+                                        value={vendorProfile.store_name}
+                                        onChange={e => setVendorProfile({ ...vendorProfile, store_name: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm mb-4"
+                                        placeholder="예: 드림스튜디오 빈티지"
+                                    />
+                                </div>
+                                <div>
                                     <label className="block text-sm font-bold text-gray-900 mb-2">매장 소개</label>
                                     <textarea 
                                         value={vendorProfile.description}

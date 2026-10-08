@@ -77,7 +77,7 @@ export default function VendorListPage({ lang = 'ko' }) {
                                     </div>
                                     <div className="p-4 md:p-5 flex flex-col flex-1 overflow-hidden">
                                         <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-1 truncate">
-                                            {v.store_name || v.vendor_code}
+                                            {v.store_name || "상호명 미등록"}
                                         </h2>
                                         
                                         <div className="flex-1 overflow-hidden flex flex-col justify-center">
