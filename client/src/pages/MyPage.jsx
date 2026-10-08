@@ -1298,11 +1298,12 @@ const MyPage = ({ lang }) => {
     const loadVendorProfile = async () => {
         setVendorProfileLoading(true);
         try {
-            const res = await axios.get(`${API_BASE_URL}/vendor-profiles/${user.login_id}`);
+            const res = await fetch(`/api/vendor-profiles/${user.login_id}`);
+            const data = await res.json();
             setVendorProfile({
-                description: res.data.description || '',
-                rules: res.data.rules || '',
-                logo_url: res.data.logo_url || ''
+                description: data.description || '',
+                rules: data.rules || '',
+                logo_url: data.logo_url || ''
             });
         } catch (err) {
             console.error('Failed to load vendor profile:', err);
@@ -1317,25 +1318,34 @@ const MyPage = ({ lang }) => {
             if (vendorLogoFile) {
                 const formData = new FormData();
                 formData.append('image', vendorLogoFile);
-                const res = await axios.post(`${API_BASE_URL}/vendor-profiles/${user.login_id}/logo`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
+                const res = await fetch(`/api/vendor-profiles/${user.login_id}/logo`, {
+                    method: 'POST',
+                    body: formData
                 });
-                if (res.data.success) {
-                    finalLogoUrl = res.data.url;
+                const data = await res.json();
+                if (data.success) {
+                    finalLogoUrl = data.url;
                 }
             }
 
-            await axios.put(`${API_BASE_URL}/vendor-profiles/${user.login_id}`, {
-                description: vendorProfile.description,
-                rules: vendorProfile.rules,
-                logo_url: finalLogoUrl
+            const res2 = await fetch(`/api/vendor-profiles/${user.login_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    description: vendorProfile.description,
+                    rules: vendorProfile.rules,
+                    logo_url: finalLogoUrl
+                })
             });
+            
+            if (!res2.ok) throw new Error('서버 응답 오류 (상태코드: ' + res2.status + ')');
+            
             alert('매장 프로필이 성공적으로 저장되었습니다!');
             setVendorLogoFile(null);
             loadVendorProfile();
         } catch (err) {
             console.error(err);
-            alert('저장에 실패했습니다: ' + (err.response?.data?.message || err.message));
+            alert('저장에 실패했습니다: ' + err.message);
         }
     };
 
