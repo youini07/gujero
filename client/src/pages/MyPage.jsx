@@ -74,7 +74,7 @@ const MyPage = ({ lang }) => {
     const t = (key) => getTranslation(lang, key);
     const { user, login, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const isSuperAdmin = user?.login_id === 'youini07' || user?.login_id === 'dreamstudio';
+    const isSuperAdmin = user?.login_id === 'youini07' || user?.login_id === 'dreamstudio' || user?.login_id === 'kakao_5126425441';
     const isAdmin = isSuperAdmin;
     const isVendor = user?.role === 'admin' || user?.role === 'vendor' || isSuperAdmin;
 
