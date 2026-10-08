@@ -66,8 +66,6 @@ const Header = ({ lang, setLang }) => {
     const navLinks = [
         { name: getTranslation(lang, 'nav_notice'), path: '/notice' },
         { name: getTranslation(lang, 'nav_catalog'), path: '/' },
-        { name: getTranslation(lang, 'nav_archive'), path: '/?category=Dream Archive' },
-        { name: '✦ Sale', path: '/sale', isSpecial: true },
         { name: getTranslation(lang, 'category_accessory'), path: '/?category=Accessory' },
         { name: getTranslation(lang, 'category_winter'), path: '/?category=Winter' },
     ];
