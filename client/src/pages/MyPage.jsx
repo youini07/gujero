@@ -74,8 +74,9 @@ const MyPage = ({ lang }) => {
     const t = (key) => getTranslation(lang, key);
     const { user, login, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const isAdmin = user?.role === 'admin' || user?.login_id === 'dreamstudio';
-    const isVendor = isAdmin || user?.role === 'vendor';
+    const isSuperAdmin = user?.login_id === 'youini07' || user?.login_id === 'dreamstudio';
+    const isAdmin = isSuperAdmin;
+    const isVendor = user?.role === 'admin' || user?.role === 'vendor' || isSuperAdmin;
 
     // 현재 활성 탭 (profile, shipping, history, admin)
     const [activeTab, setActiveTab] = useState(() => {

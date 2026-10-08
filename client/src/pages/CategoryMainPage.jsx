@@ -9,40 +9,41 @@ const CategoryMainPage = ({ lang }) => {
             name: '캐주얼 (Casual)', 
             paramKey: 'style', 
             paramVal: 'Casual,Classic Casual,Sporty Casual', 
-            image: '/static/categories/casual_style.png'
+            image: '/categories/casual_style.png'
         },
         { 
+
             id: 'sporty', 
             name: '스포티 & 아웃도어', 
             paramKey: 'style', 
             paramVal: 'Sports,Sportswear,Sporty,Outdoor,Functional,Gorpcore', 
-            image: '/static/categories/sporty_style.png'
+            image: '/categories/sporty_style.png'
         },
         { 
             id: 'street', 
             name: '스트릿 & 빈티지', 
             paramKey: 'style', 
             paramVal: 'Streetwear,Retro,Vintage,OldSchool', 
-            image: '/static/categories/street_style.png'
+            image: '/categories/street_style.png'
         },
         { 
             id: 'classic', 
             name: '클래식 & 미니멀', 
             paramKey: 'style', 
             paramVal: 'Classic,Contemporary,Preppy,Minimal,Chic', 
-            image: '/static/categories/classic_style.png'
+            image: '/categories/classic_style.png'
         }
     ];
 
     // 남/여 구분 없이 7개 카테고리 통합
     const UNIFIED_CATEGORIES = [
-        { id: '상의', name: '상의', paramKey: 'upper_category', paramVal: '상의', image: '/static/categories/tops.png' },
-        { id: '아우터', name: '아우터', paramKey: 'upper_category', paramVal: '아우터', image: '/static/categories/outerwear.png' },
-        { id: '하의', name: '하의', paramKey: 'upper_category', paramVal: '하의', image: '/static/categories/bottoms.png' },
-        { id: '원피스', name: '원피스', paramKey: 'upper_category', paramVal: '원피스', image: '/static/categories/dresses.png' },
-        { id: '신발', name: '신발', paramKey: 'upper_category', paramVal: '신발', image: '/static/categories/shoes.png' },
-        { id: '가방', name: '가방', paramKey: 'upper_category', paramVal: '가방', image: '/static/categories/bags.png' },
-        { id: '액세서리', name: '액세서리', paramKey: 'upper_category', paramVal: '액세서리', image: '/static/categories/accessories.png' }
+        { id: '상의', name: '상의', paramKey: 'upper_category', paramVal: '상의', image: '/categories/tops.png' },
+        { id: '아우터', name: '아우터', paramKey: 'upper_category', paramVal: '아우터', image: '/categories/outerwear.png' },
+        { id: '하의', name: '하의', paramKey: 'upper_category', paramVal: '하의', image: '/categories/bottoms.png' },
+        { id: '원피스', name: '원피스', paramKey: 'upper_category', paramVal: '원피스', image: '/categories/dresses.png' },
+        { id: '신발', name: '신발', paramKey: 'upper_category', paramVal: '신발', image: '/categories/shoes.png' },
+        { id: '가방', name: '가방', paramKey: 'upper_category', paramVal: '가방', image: '/categories/bags.png' },
+        { id: '액세서리', name: '액세서리', paramKey: 'upper_category', paramVal: '액세서리', image: '/categories/accessories.png' }
     ];
 
     return (
