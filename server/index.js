@@ -1756,7 +1756,7 @@ app.get('/api/debug-sync-log', (req, res) => {
 app.get('/api/vendors', async (req, res) => {
     try {
         const query = `
-            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt
+            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt, vp.logo_url, vp.description, vp.rules
             FROM (
                 SELECT vendor_code FROM vendor_profiles
                 UNION
@@ -1768,6 +1768,7 @@ app.get('/api/vendors', async (req, res) => {
                 WHERE vendor_code IS NOT NULL AND vendor_code != ''
                 GROUP BY vendor_code
             ) p ON v.vendor_code = p.vendor_code
+            LEFT JOIN vendor_profiles vp ON v.vendor_code = vp.vendor_code
             ORDER BY cnt DESC
         `;
         db.all(query, [], (err, rows) => {

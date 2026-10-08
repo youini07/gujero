@@ -51,16 +51,16 @@ export default function VendorListPage({ lang = 'ko' }) {
                     ) : vendors.length === 0 ? (
                         <div className="text-center text-gray-800 py-10 font-bold">등록된 매장이 없습니다.</div>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                        <div className="grid grid-cols-1 gap-5">
                             {vendors.map((v, idx) => (
                                 <div 
                                     key={idx}
                                     onClick={() => handleVendorClick(v.vendor_code)}
-                                    className="bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl overflow-hidden cursor-pointer hover:border-black transition-all transform hover:-translate-y-1 shadow-xl flex flex-col group"
+                                    className="bg-white/90 backdrop-blur-md border border-gray-300 rounded-2xl overflow-hidden cursor-pointer hover:border-black transition-all shadow-xl flex flex-row group items-stretch h-40 md:h-48 relative"
                                 >
-                                    <div className="w-full aspect-[4/3] bg-gray-200 relative overflow-hidden">
+                                    <div className="w-2/5 md:w-1/3 bg-gray-200 relative overflow-hidden shrink-0">
                                         <img 
-                                            src={`/vendors/${v.vendor_code}.jpg`} 
+                                            src={v.logo_url || '/stores.jpg'} 
                                             onError={(e) => { 
                                                 e.target.onerror = null; 
                                                 e.target.src = '/stores.jpg'; 
@@ -68,15 +68,40 @@ export default function VendorListPage({ lang = 'ko' }) {
                                             alt={v.vendor_code}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
                                         <div className="absolute bottom-3 left-3">
-                                            <p className="text-[11px] text-gray-300 font-medium bg-black/50 px-2 py-0.5 rounded-sm backdrop-blur-md">
+                                            <p className="text-[11px] text-gray-200 font-medium bg-black/50 px-2 py-0.5 rounded-sm backdrop-blur-md">
                                                 상품 {v.cnt}개
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="p-4 text-center">
-                                        <h2 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">{v.vendor_code}</h2>
+                                    <div className="p-4 md:p-5 flex flex-col flex-1 overflow-hidden">
+                                        <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-1 truncate">
+                                            {v.vendor_code}
+                                        </h2>
+                                        
+                                        <div className="flex-1 overflow-hidden flex flex-col justify-center">
+                                            {v.description && (
+                                                <p className="text-sm md:text-base text-gray-700 line-clamp-2 mb-1 font-medium whitespace-pre-line">
+                                                    {v.description}
+                                                </p>
+                                            )}
+                                            {v.rules && (
+                                                <p className="text-xs md:text-sm text-gray-500 line-clamp-2 mt-1 pt-1 border-t border-gray-200 whitespace-pre-line">
+                                                    {v.rules}
+                                                </p>
+                                            )}
+                                            {!v.description && !v.rules && (
+                                                <p className="text-sm text-gray-400 italic mt-1">
+                                                    등록된 매장 소개가 없습니다.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="absolute right-4 bottom-4 text-gray-400 group-hover:text-black transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
