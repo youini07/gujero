@@ -1236,6 +1236,7 @@ const MyPage = ({ lang }) => {
 
         if (isVendor) {
             currentTabs.push({ id: 'vendor_products', label: '📦 내 상품 관리 (사장님)', icon: '🏪' });
+            currentTabs.push({ id: 'vendor_profile', label: '🏪 매장 프로필 관리', icon: '⚙️' });
         }
 
         return currentTabs;
@@ -1266,6 +1267,9 @@ const MyPage = ({ lang }) => {
 
     // 입점 사장님 탭일 때 데이터 패치
     useEffect(() => {
+        if (activeTab === 'vendor_profile' && user?.login_id) {
+            loadVendorProfile();
+        }
         if (activeTab === 'vendor_products' && user?.login_id) {
             setVendorLoading(true);
             fetch(`/api/vendor/products/${user.login_id}`)
@@ -1285,6 +1289,55 @@ const MyPage = ({ lang }) => {
                 });
         }
     }, [activeTab, user]);
+
+    // --- Vendor Profile State ---
+    const [vendorProfile, setVendorProfile] = useState({ description: '', rules: '', logo_url: '' });
+    const [vendorProfileLoading, setVendorProfileLoading] = useState(false);
+    const [vendorLogoFile, setVendorLogoFile] = useState(null);
+
+    const loadVendorProfile = async () => {
+        setVendorProfileLoading(true);
+        try {
+            const res = await axios.get(`${API_BASE_URL}/vendor-profiles/${user.login_id}`);
+            setVendorProfile({
+                description: res.data.description || '',
+                rules: res.data.rules || '',
+                logo_url: res.data.logo_url || ''
+            });
+        } catch (err) {
+            console.error('Failed to load vendor profile:', err);
+        }
+        setVendorProfileLoading(false);
+    };
+
+    const handleVendorProfileSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            let finalLogoUrl = vendorProfile.logo_url;
+            if (vendorLogoFile) {
+                const formData = new FormData();
+                formData.append('image', vendorLogoFile);
+                const res = await axios.post(`${API_BASE_URL}/vendor-profiles/${user.login_id}/logo`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                if (res.data.success) {
+                    finalLogoUrl = res.data.url;
+                }
+            }
+
+            await axios.put(`${API_BASE_URL}/vendor-profiles/${user.login_id}`, {
+                description: vendorProfile.description,
+                rules: vendorProfile.rules,
+                logo_url: finalLogoUrl
+            });
+            alert('매장 프로필이 성공적으로 저장되었습니다!');
+            setVendorLogoFile(null);
+            loadVendorProfile();
+        } catch (err) {
+            console.error(err);
+            alert('저장에 실패했습니다: ' + (err.response?.data?.message || err.message));
+        }
+    };
 
     useEffect(() => {
         if (authLoading) return; // Wait until AuthContext finishes loading session
@@ -3604,6 +3657,61 @@ const MyPage = ({ lang }) => {
             )}
 
             {/* 입점 사장님 탭 (vendor_products) */}
+            {activeTab === 'vendor_profile' && (
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mt-6">
+                    <div className="p-4 md:p-6 border-b border-gray-100 bg-gray-50/50">
+                        <h2 className="text-lg md:text-xl font-black text-gray-900 flex items-center gap-2">
+                            <span>⚙️</span> 매장 프로필 관리
+                        </h2>
+                    </div>
+                    <div className="p-4 md:p-6">
+                        {vendorProfileLoading ? (
+                            <div className="text-center text-gray-500 py-10">불러오는 중...</div>
+                        ) : (
+                            <form onSubmit={handleVendorProfileSubmit} className="space-y-6 max-w-2xl">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-2">간판 이미지 (로고)</label>
+                                    {vendorProfile.logo_url && (
+                                        <div className="mb-4">
+                                            <img src={vendorProfile.logo_url} alt="Logo" className="h-32 object-contain rounded border border-gray-200 p-2" />
+                                        </div>
+                                    )}
+                                    <input 
+                                        type="file" 
+                                        accept="image/*"
+                                        onChange={(e) => setVendorLogoFile(e.target.files[0])}
+                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-black hover:file:bg-gray-200 transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-2">매장 소개</label>
+                                    <textarea 
+                                        value={vendorProfile.description}
+                                        onChange={e => setVendorProfile({ ...vendorProfile, description: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all h-32 resize-none text-sm"
+                                        placeholder="고객들에게 보여질 매장의 특징이나 인사말을 적어주세요."
+                                    ></textarea>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 mb-2">매장 규칙 (교환/환불 등)</label>
+                                    <textarea 
+                                        value={vendorProfile.rules}
+                                        onChange={e => setVendorProfile({ ...vendorProfile, rules: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all h-32 resize-none text-sm"
+                                        placeholder="매장 자체적인 배송비, 교환/환불 정책 등을 안내할 수 있습니다."
+                                    ></textarea>
+                                </div>
+                                <div>
+                                    <button type="submit" className="px-6 py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition-colors">
+                                        저장하기
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'vendor_products' && (
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mt-6">
                     <div className="p-4 md:p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">

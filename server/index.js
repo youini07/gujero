@@ -996,6 +996,19 @@ db.serialize(() => {
                     `, (err) => {
                         if (err) console.error('[DB] iconic_looks 테이블 생성 에러:', err.message);
                         db.run("ALTER TABLE iconic_looks ADD COLUMN tags TEXT", (err) => {});
+                        
+                        db.run(`
+                            CREATE TABLE IF NOT EXISTS vendor_profiles (
+                                vendor_code TEXT PRIMARY KEY,
+                                description TEXT,
+                                rules TEXT,
+                                logo_url TEXT,
+                                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                                updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+                            )
+                        `, (err) => {
+                            if (err) console.error('[DB] vendor_profiles 에러:', err.message);
+                        });
                     });
 
                     syncCouponsFromSheets();
@@ -1033,6 +1046,65 @@ app.post('/api/admin/settings', (req, res) => {
             res.json({ success: true, key, value });
         }
     );
+});
+
+
+// ─── 입점 매장(사장님) 프로필 API ────────────────────────────────
+
+const vendorLogoStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // 빌드된 client/dist 내부 또는 public 에 따라 달라질 수 있으나, 
+        // 밴드구제거리 서버 구조상 정적 파일로 서빙되는 곳을 사용 (STATIC_ASSETS_PATH 등)
+        const dest = path.join(STATIC_ASSETS_PATH, 'vendors');
+        if (!fs.existsSync(dest)) {
+            fs.mkdirSync(dest, { recursive: true });
+        }
+        cb(null, dest);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, 'vendor-' + uniqueSuffix + ext);
+    }
+});
+const vendorLogoUpload = multer({ storage: vendorLogoStorage });
+
+app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
+    const { vendor_code } = req.params;
+    db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.json({ vendor_code, description: '', rules: '', logo_url: '' });
+        res.json(row);
+    });
+});
+
+app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
+    const { vendor_code } = req.params;
+    const { description, rules, logo_url } = req.body;
+    
+    db.run(
+        `INSERT INTO vendor_profiles (vendor_code, description, rules, logo_url, updated_at) 
+         VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+         ON CONFLICT(vendor_code) DO UPDATE SET 
+            description = excluded.description,
+            rules = excluded.rules,
+            logo_url = excluded.logo_url,
+            updated_at = datetime('now', 'localtime')`,
+        [vendor_code, description || '', rules || '', logo_url || ''],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, vendor_code });
+        }
+    );
+});
+
+app.post('/api/vendor-profiles/:vendor_code/logo', vendorLogoUpload.single('image'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    // /static/vendors/... 형태로 반환
+    const fileUrl = `/static/vendors/${req.file.filename}`;
+    res.json({ success: true, url: fileUrl });
 });
 
 
@@ -1664,6 +1736,33 @@ app.get('/api/vendors', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// GET /api/vendor-profiles/:vendor_code
+app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
+    const { vendor_code } = req.params;
+    db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(row || { vendor_code, description: '', rules: '', logo_url: '' });
+    });
+});
+
+// PUT /api/vendor-profiles/:vendor_code
+app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
+    const { vendor_code } = req.params;
+    const { description, rules, logo_url } = req.body;
+    db.run(`
+        INSERT INTO vendor_profiles (vendor_code, description, rules, logo_url, updated_at) 
+        VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+        ON CONFLICT(vendor_code) DO UPDATE SET 
+            description = excluded.description,
+            rules = excluded.rules,
+            logo_url = excluded.logo_url,
+            updated_at = datetime('now', 'localtime')
+    `, [vendor_code, description || '', rules || '', logo_url || ''], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
 });
 
 // GET /api/products
@@ -5360,6 +5459,15 @@ app.post('/api/admin/upload_banner', uploadBanner.single('image'), (req, res) =>
     }
     const imageUrl = `/static/main_images/${req.file.filename}`;
     res.json({ success: true, imageUrl });
+});
+
+// 사장님(벤더): 로고 이미지 업로드
+app.post('/api/vendor-profiles/:vendor_code/logo', uploadBanner.single('image'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: '파일이 업로드되지 않았습니다.' });
+    }
+    const imageUrl = `/static/main_images/${req.file.filename}`;
+    res.json({ success: true, url: imageUrl });
 });
 
 // ==========================================

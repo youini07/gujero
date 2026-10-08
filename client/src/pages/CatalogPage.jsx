@@ -116,6 +116,21 @@ const CatalogPage = ({ lang }) => {
     const arrivalDate = searchParams.get('arrival_date') || 'All';
     const style = searchParams.get('style') || 'All';
     const vendor = searchParams.get('vendor') || 'All';
+    const [vendorProfile, setVendorProfile] = useState(null);
+
+    useEffect(() => {
+        if (vendor !== 'All') {
+            fetch(`/api/vendor-profiles/${vendor}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.vendor_code) setVendorProfile(data);
+                    else setVendorProfile(null);
+                })
+                .catch(() => setVendorProfile(null));
+        } else {
+            setVendorProfile(null);
+        }
+    }, [vendor]);
 
     // 가격 슬라이더 로컬 상태 (드래그 중 API 호출 방지)
     const [sliderMin, setSliderMin] = useState(0);
@@ -524,6 +539,37 @@ const CatalogPage = ({ lang }) => {
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {vendorProfile && (
+                        <div className="mb-6 animate-fadeIn bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl overflow-hidden shadow-2xl border border-gray-800">
+                            <div className="flex flex-col md:flex-row p-6 md:p-8 gap-6 md:gap-8 items-start md:items-center">
+                                {vendorProfile.logo_url ? (
+                                    <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-xl flex items-center justify-center shadow-inner overflow-hidden shrink-0">
+                                        <img src={vendorProfile.logo_url} alt={vendorProfile.vendor_code} className="w-full h-full object-contain p-2" />
+                                    </div>
+                                ) : (
+                                    <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-800 rounded-xl flex items-center justify-center text-4xl font-black text-gray-500 shrink-0">
+                                        {vendorProfile.vendor_code.substring(0, 2).toUpperCase()}
+                                    </div>
+                                )}
+                                <div className="flex-1">
+                                    <h2 className="text-3xl md:text-4xl font-black mb-3 text-transparent bg-clip-text bg-gradient-to-r from-[#ff3366] to-orange-400">{vendorProfile.vendor_code}</h2>
+                                    {vendorProfile.description && (
+                                        <p className="text-sm md:text-base text-gray-300 whitespace-pre-wrap mb-5 leading-relaxed">{vendorProfile.description}</p>
+                                    )}
+                                    {vendorProfile.rules && (
+                                        <div className="bg-white/5 backdrop-blur-sm p-4 rounded-xl text-xs md:text-sm text-gray-400 whitespace-pre-wrap border border-white/10">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-lg">📌</span>
+                                                <span className="font-bold text-gray-200 tracking-wide">매장 공지 / 정책</span>
+                                            </div>
+                                            <div className="leading-relaxed pl-1">{vendorProfile.rules}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
 
