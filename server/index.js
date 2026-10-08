@@ -756,6 +756,39 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // 라인 ID를 UNIQUE로 설정하여 중복 가입 방지
 // =============================================
 db.serialize(() => {
+    // 0. 상품 테이블 (핵심 테이블)
+    db.run(`
+        CREATE TABLE IF NOT EXISTS products (
+            code TEXT PRIMARY KEY,
+            vendor_code TEXT DEFAULT '',
+            updated_at TEXT,
+            stock TEXT,
+            price TEXT,
+            original_price TEXT,
+            brand TEXT,
+            category TEXT,
+            name TEXT,
+            size TEXT,
+            actual_size TEXT,
+            description TEXT,
+            image_url TEXT,
+            nukki_url TEXT,
+            thumbnail_url TEXT,
+            hashtags TEXT,
+            style TEXT,
+            arrival_date TEXT,
+            u TEXT,
+            season TEXT,
+            name_en TEXT,
+            name_th TEXT,
+            description_en TEXT,
+            description_th TEXT,
+            product_images TEXT,
+            synced_to_sheet BOOLEAN DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now', 'localtime'))
+        )
+    `);
+
     // 1. 고객(회원) 테이블
     db.run(`
         CREATE TABLE IF NOT EXISTS customers (
