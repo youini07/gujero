@@ -38,7 +38,7 @@ if %errorlevel% equ 0 (
     git commit -m "Auto-deploy: Update from local PC"
 )
 
-git push origin master
+git push origin main
 if %errorlevel% neq 0 (
     echo [ERROR] Git push failed.
     pause
