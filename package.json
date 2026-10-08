@@ -1,0 +1,13 @@
+{
+    "name": "gujero-catalog",
+    "version": "1.0.0",
+    "description": "822 SHOP Catalog V3",
+    "scripts": {
+        "postinstall": "npm install --prefix server",
+        "build": "echo 'Using pre-built assets from local. Skipping cloud build.'",
+        "start": "python3 server/migrate_data.py || true && node server/index.js"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

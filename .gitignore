@@ -1,0 +1,69 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+dist_work/
+build/
+.next/
+out/
+
+# Electron release artifacts (too large for GitHub, 100MB+ exe/asar files)
+**/release/win-unpacked/
+**/release/*.exe
+**/release/*.exe.blockmap
+**/release/builder-debug.yml
+**/release/builder-effective-config.yaml
+
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# database
+*.sqlite
+*.sqlite-journal
+
+# static images (too large for git)
+static/images/
+static/thumbnails/
+
+# drive service account
+service_account.json
+
+# Tool outputs (auto-generated images)
+tools/catalog_output/
+__pycache__/
+
+# misc
+.vscode/
+.DS_Store
+Thumbs.db
+
+**/release/
+**/release2/
+**/dist-electron/
+**/image/BAND/
+**/image/OPENMARKET/
+**/scratch/
+**/win-unpacked/
+**/*.exe
+**/*.exe.blockmap
+**/*.pak
+**/*.asar
+**/*.bin
+
+bandadmin/git_log.txt
+
+bandsniper/
+static/thumbnails_scheduled/
+
+*.sqlite.old
+server/hardcoded_strings.txt

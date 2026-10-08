@@ -1,0 +1,16 @@
+﻿[phases.setup]
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip"]
+
+[phases.install]
+cmds = [
+    "npm install --prefix server",
+    "pip install --break-system-packages -r server/requirements.txt || true"
+]
+
+[phases.build]
+cmds = [
+    "echo Build skipped - using pre-built assets"
+]
+
+[start]
+cmd = "python3 server/migrate_data.py || true && node server/index.js"
