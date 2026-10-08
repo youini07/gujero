@@ -35,15 +35,12 @@ export default function VendorListPage({ lang = 'ko' }) {
             className="min-h-screen pb-20 relative bg-cover bg-center bg-fixed"
             style={{ backgroundImage: "url('/stores.jpg')" }}
         >
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-[3px] z-0"></div>
+
             <div className="relative z-10">
                 <Header />
-
                 
                 <div className="pt-20 px-4 max-w-6xl mx-auto">
-                    <h1 className="text-3xl font-black mb-6 text-center text-gray-900">입점 매장 리스트</h1>
-                    <p className="text-gray-800 text-center mb-10 text-sm font-bold">
-                        머물던 시간이 멋이 되는 길. 구제로
-                    </p>
 
                     {loading ? (
                         <div className="flex justify-center py-10">
