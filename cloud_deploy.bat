@@ -1,5 +1,5 @@
 @echo off
-title 822 SHOP One-Click Cloud Deployer
+title GUJERO One-Click Cloud Deployer
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
@@ -53,20 +53,20 @@ echo ==========================================
 timeout /t 240 /nobreak >nul
 
 echo [INFO] Sending sync command...
-curl.exe -s --max-time 600 "https://www.822shop.com/api/sync"
+curl.exe -s --max-time 600 "https://www.gujero.com/api/sync"
 echo.
 
 echo ==========================================
 echo [3/3] Verifying deployment...
 echo ==========================================
 echo [Version Check]
-curl.exe -s "https://www.822shop.com/api/deploy-check"
+curl.exe -s "https://www.gujero.com/api/deploy-check"
 echo.
 echo [Products Count]
-curl.exe -s "https://www.822shop.com/api/debug-products-count"
+curl.exe -s "https://www.gujero.com/api/debug-products-count"
 echo.
 echo ==========================================
 echo [COMPLETE] Deployment process finished.
-echo URL: https://www.822shop.com
+echo URL: https://www.gujero.com
 echo ==========================================
 pause

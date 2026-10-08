@@ -1,10 +1,10 @@
 @echo off
-title 822 SHOP - 데이터 동기화 프로그램 (리뉴얼 버전)
+title GUJERO - 데이터 동기화 프로그램 (리뉴얼 버전)
 color 0B
 
 echo.
 echo ==========================================================
-echo    822 SHOP 데이터베이스 및 클라우드 이미지 동기화
+echo    GUJERO 데이터베이스 및 클라우드 이미지 동기화
 echo ==========================================================
 echo.
 echo    [작업 내용]
@@ -39,18 +39,18 @@ echo.
 echo ==========================================
 echo [3/3] 라이브 서버 데이터 동기화 중...
 echo ==========================================
-curl.exe -s --max-time 600 "https://www.822shop.com/api/sync"
+curl.exe -s --max-time 600 "https://www.gujero.com/api/sync"
 echo.
 if errorlevel 1 (
     echo.
     echo [경고] 1차 동기화 실패. 30초 후 재시도합니다...
     timeout /t 30 /nobreak >nul
-    curl.exe -s --max-time 600 "https://www.822shop.com/api/sync"
+    curl.exe -s --max-time 600 "https://www.gujero.com/api/sync"
     echo.
 )
 
 echo.
 echo ==========================================
 echo  업데이트가 완료되었습니다! 
-echo  홈페이지: https://www.822shop.com
+echo  홈페이지: https://www.gujero.com
 echo ==========================================
