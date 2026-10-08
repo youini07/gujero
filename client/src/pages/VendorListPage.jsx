@@ -32,38 +32,36 @@ export default function VendorListPage({ lang = 'ko' }) {
 
     return (
         <div 
-            className="min-h-screen text-white pb-20 relative bg-cover bg-center bg-fixed"
+            className="min-h-screen pb-20 relative bg-cover bg-center bg-fixed"
             style={{ backgroundImage: "url('/stores.jpg')" }}
         >
-            {/* 배경을 살짝 어둡게 만들어 글씨가 잘 보이게 함 */}
-            <div className="absolute inset-0 bg-black/60 z-0"></div>
-
             <div className="relative z-10">
                 <Header />
+
                 
                 <div className="pt-20 px-4 max-w-6xl mx-auto">
-                    <h1 className="text-3xl font-black mb-6 text-center text-white drop-shadow-md">입점 매장 리스트</h1>
-                    <p className="text-gray-200 text-center mb-10 text-sm font-medium drop-shadow-sm">
+                    <h1 className="text-3xl font-black mb-6 text-center text-gray-900">입점 매장 리스트</h1>
+                    <p className="text-gray-800 text-center mb-10 text-sm font-bold">
                         머물던 시간이 멋이 되는 길. 구제로
                     </p>
 
                     {loading ? (
                         <div className="flex justify-center py-10">
-                            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
                         </div>
                     ) : error ? (
-                        <div className="text-center text-red-500 py-10 font-bold bg-black/50 rounded-lg">{error}</div>
+                        <div className="text-center text-red-600 py-10 font-bold">{error}</div>
                     ) : vendors.length === 0 ? (
-                        <div className="text-center text-gray-300 py-10 bg-black/50 rounded-lg">등록된 매장이 없습니다.</div>
+                        <div className="text-center text-gray-800 py-10 font-bold">등록된 매장이 없습니다.</div>
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                             {vendors.map((v, idx) => (
                                 <div 
                                     key={idx}
                                     onClick={() => handleVendorClick(v.vendor_code)}
-                                    className="bg-black/70 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden cursor-pointer hover:border-white transition-all transform hover:-translate-y-1 shadow-xl flex flex-col group"
+                                    className="bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl overflow-hidden cursor-pointer hover:border-black transition-all transform hover:-translate-y-1 shadow-xl flex flex-col group"
                                 >
-                                    <div className="w-full aspect-[4/3] bg-gray-800 relative overflow-hidden">
+                                    <div className="w-full aspect-[4/3] bg-gray-200 relative overflow-hidden">
                                         <img 
                                             src={`/vendors/${v.vendor_code}.jpg`} 
                                             onError={(e) => { 
@@ -81,7 +79,7 @@ export default function VendorListPage({ lang = 'ko' }) {
                                         </div>
                                     </div>
                                     <div className="p-4 text-center">
-                                        <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">{v.vendor_code}</h2>
+                                        <h2 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">{v.vendor_code}</h2>
                                     </div>
                                 </div>
                             ))}
