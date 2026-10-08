@@ -1751,20 +1751,22 @@ const MyPage = ({ lang }) => {
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                            <span className="text-[#FEE500] text-sm bg-black rounded-full w-5 h-5 flex items-center justify-center font-black">K</span>
-                            카카오톡 오픈채팅 주소 (선택)
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.kakao_url}
-                            onChange={(e) => setFormData(prev => ({ ...prev, kakao_url: e.target.value }))}
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#FEE500]"
-                            placeholder="https://open.kakao.com/o/..."
-                        />
-                        <p className="mt-1 text-[12px] text-gray-500">본인이 업로드한 상품에 고객 문의 시 연결될 오픈채팅 주소입니다.</p>
-                    </div>
+                    {user?.role === 'admin' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <span className="text-[#FEE500] text-sm bg-black rounded-full w-5 h-5 flex items-center justify-center font-black">K</span>
+                                카카오톡 오픈채팅 주소 (선택)
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.kakao_url}
+                                onChange={(e) => setFormData(prev => ({ ...prev, kakao_url: e.target.value }))}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#FEE500]"
+                                placeholder="https://open.kakao.com/o/..."
+                            />
+                            <p className="mt-1 text-[12px] text-gray-500">본인이 업로드한 상품에 고객 문의 시 연결될 오픈채팅 주소입니다.</p>
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
