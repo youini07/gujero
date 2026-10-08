@@ -1332,6 +1332,7 @@ const MyPage = ({ lang }) => {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    store_name: vendorProfile.store_name,
                     description: vendorProfile.description,
                     rules: vendorProfile.rules,
                     logo_url: finalLogoUrl
