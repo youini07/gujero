@@ -1936,6 +1936,13 @@ const MyPage = ({ lang }) => {
                                 onChange={(e) => setPromoteVendorInput(e.target.value)}
                                 className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black"
                             />
+                            <input
+                                type="text"
+                                placeholder="밴드어드민 ID (예: bandadmin_abc)"
+                                value={promoteBandadminInput}
+                                onChange={(e) => setPromoteBandadminInput(e.target.value)}
+                                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-black"
+                            />
                             <button 
                                 onClick={handlePromoteVendor} 
                                 className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold text-sm transition-colors shrink-0 whitespace-nowrap"
