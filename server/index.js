@@ -1561,7 +1561,7 @@ const syncData = async () => {
                 db.run('DELETE FROM products'); // 낡은 방식과 똑같이 전체 초기화 후 다시 씀
                 
                 const stmt = db.prepare(`
-                    INSERT INTO products (
+                    INSERT OR REPLACE INTO products (
                         code, vendor_code, updated_at, stock, price, original_price, brand, 
                         category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
                         hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th
@@ -1572,6 +1572,7 @@ const syncData = async () => {
                     const getCell = (idx) => (row[idx] || '').trim();
                     const code = getCell(0); 
                     if(!code) return; // 제품코드가 없으면 스킵
+                    const status = getCell(38); if(status === '삭제됨') return; // 삭제된 항목 스킵
 
                     const vendor_code = getCell(1); // B열: 관리코드 (여기에 사장님 아이디가 박힘!)
                     const updated_at = getCell(2);
