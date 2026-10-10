@@ -895,6 +895,9 @@ db.serialize(() => {
             loadTrafficBaseline();
         }
     });
+                        db.run("ALTER TABLE customers ADD COLUMN bandadmin_id TEXT DEFAULT ''", (err) => {
+                            if (err && !err.message.includes('duplicate column')) console.log('[DB] bandadmin_id 컬럼 추가 에러 무시 (이미 존재):', err.message);
+                        });
 
     // 6. 페이지 뷰 기록 테이블
     db.run(`
@@ -2078,7 +2081,7 @@ app.get('/api/products/:code', (req, res) => {
         SELECT p.*, IFNULL(d.discount_rate, 0) as discount_rate, c.kakao_url as vendor_kakao_url
         FROM products p
         LEFT JOIN discount_products d ON p.code = d.product_code
-        LEFT JOIN customers c ON p.vendor_code = c.login_id
+        LEFT JOIN customers c ON p.vendor_code = c.bandadmin_id
         WHERE p.code = ?
     `, [code], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -5336,13 +5339,13 @@ app.put('/api/admin/registered-customers/:id', (req, res) => {
 });
 
 app.put('/api/admin/promote-vendor', (req, res) => {
-    const { loginId } = req.body;
-    if (!loginId) return res.status(400).json({ error: 'MISSING', message: '로그인 아이디(또는 카카오ID)를 입력해주세요.' });
+    const { loginId, bandadminId } = req.body;
+    if (!loginId || !bandadminId) return res.status(400).json({ error: 'MISSING', message: '카카오 ID와 밴드어드민 ID를 모두 입력해주세요.' });
 
-    const query = `UPDATE customers SET role = 'vendor' WHERE login_id = ?`;
-    db.run(query, [loginId.trim()], function(err) {
+    const query = `UPDATE customers SET role = 'vendor', bandadmin_id = ? WHERE login_id = ?`;
+    db.run(query, [bandadminId.trim(), loginId.trim()], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'NOT_FOUND', message: '가입되지 않은 아이디입니다. 먼저 홈페이지에 로그인(회원가입) 하도록 안내해주세요.' });
+        if (this.changes === 0) return res.status(404).json({ error: 'NOT_FOUND', message: '가입되지 않은 아이디입니다. 먼저 홈페이지 회원가입을 유도해주세요.' });
         res.json({ success: true });
     });
 });
@@ -5352,15 +5355,19 @@ app.put('/api/admin/promote-vendor', (req, res) => {
 // =============================================
 app.get('/api/vendor/products/:loginId', (req, res) => {
     const { loginId } = req.params;
-    db.all(`
-        SELECT p.*, IFNULL(d.discount_rate, 0) as discount_rate 
-        FROM products p 
-        LEFT JOIN discount_products d ON p.code = d.product_code 
-        WHERE p.vendor_code = ? 
-        ORDER BY p.arrival_date DESC
-    `, [loginId], (err, rows) => {
+    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [loginId], (err, customer) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ products: rows });
+        const bandadminId = (customer && customer.bandadmin_id) ? customer.bandadmin_id : loginId;
+        db.all(`
+            SELECT p.*, IFNULL(d.discount_rate, 0) as discount_rate 
+            FROM products p 
+            LEFT JOIN discount_products d ON p.code = d.product_code 
+            WHERE p.vendor_code = ? 
+            ORDER BY p.arrival_date DESC
+        `, [bandadminId], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ products: rows });
+        });
     });
 });
 
@@ -5370,16 +5377,19 @@ app.put('/api/vendor/products/:code', (req, res) => {
 
     if (!loginId) return res.status(403).json({ error: 'UNAUTHORIZED', message: '권한이 없습니다.' });
 
-    // 1. 해당 상품이 이 사장님의 것인지 검증
-    db.get('SELECT vendor_code FROM products WHERE code = ?', [code], (err, row) => {
+    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [loginId], (err, customer) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: 'NOT_FOUND', message: '상품을 찾을 수 없습니다.' });
-        if (row.vendor_code !== loginId) return res.status(403).json({ error: 'FORBIDDEN', message: '본인의 상품만 수정할 수 있습니다.' });
+        const bandadminId = (customer && customer.bandadmin_id) ? customer.bandadmin_id : loginId;
 
-        // 2. 상품 가격 및 상태 업데이트
-        db.run('UPDATE products SET price = ?, stock = ? WHERE code = ?', [price, stock, code], function(err2) {
-            if (err2) return res.status(500).json({ error: err2.message });
-            res.json({ success: true });
+        db.get('SELECT vendor_code FROM products WHERE code = ?', [code], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: 'NOT_FOUND', message: '상품을 찾을 수 없습니다.' });
+            if (row.vendor_code !== bandadminId) return res.status(403).json({ error: 'FORBIDDEN', message: '본인의 상품만 수정할 수 있습니다.' });
+
+            db.run('UPDATE products SET price = ?, stock = ? WHERE code = ?', [price, stock, code], function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ success: true });
+            });
         });
     });
 });

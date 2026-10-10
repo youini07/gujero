@@ -1401,20 +1401,22 @@ const MyPage = ({ lang }) => {
     };
 
     const [promoteVendorInput, setPromoteVendorInput] = useState('');
+    const [promoteBandadminInput, setPromoteBandadminInput] = useState('');
     const handlePromoteVendor = async () => {
-        if (!promoteVendorInput.trim()) return alert('입점 사장님으로 승격할 카카오톡 고유 ID (또는 로그인 ID)를 입력해주세요.');
-        if (!confirm(`[${promoteVendorInput}] 님을 입점 사장님으로 승격하시겠습니까?`)) return;
+        if (!promoteVendorInput.trim() || !promoteBandadminInput.trim()) return alert('카카오톡 고유 ID와 밴드어드민 ID를 모두 입력해주세요.');
+        if (!confirm(`[${promoteVendorInput}] 계정을 밴드어드민 ID [${promoteBandadminInput}] 상호로 승격하시겠습니까?`)) return;
 
         try {
             const res = await fetch('/api/admin/promote-vendor', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ loginId: promoteVendorInput })
+                body: JSON.stringify({ loginId: promoteVendorInput, bandadminId: promoteBandadminInput })
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                alert(`성공적으로 승격되었습니다!\\n이제 해당 계정으로 로그인하면 '내 상품 관리' 탭을 사용할 수 있습니다.`);
+                alert(`성공적으로 승격되었습니다!\n이제 해당 계정으로 로그인하면 [${promoteBandadminInput}] 상품을 관리할 수 있습니다.`);
                 setPromoteVendorInput('');
+                setPromoteBandadminInput('');
             } else {
                 alert('승격 실패: ' + (data.message || data.error));
             }
