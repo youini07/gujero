@@ -122,13 +122,16 @@ const DetailPage = ({ lang }) => {
         // [수정] 쿼리 파라미터를 무시하고 순수 URL 경로만 비교하여 중복 제거 (대소문자 무관)
         const getBasePath = (url) => typeof url === 'string' ? url.split('?')[0].toLowerCase() : '';
         const heroBasePath = getBasePath(heroImage);
-        const mainBasePath = getBasePath(mainImgUrl);
+        // (누끼가 없으면 heroImage === mainImgUrl 이므로 hero 중복 제거만으로 충분)
         
         const filteredProductImages = product_images.filter(img => {
             const imgBasePath = getBasePath(img);
+            // 첫 화면(hero)과 같은 이미지만 중복 제거
             if (imgBasePath === heroBasePath) return false;
-            if (imgBasePath === mainBasePath) return false;
-            if (hasNukki && imgBasePath.includes('main')) return false;
+            // [수정] 누끼가 있을 때 1번 사진(mainImgUrl)을 빼지 않는다 → 누끼, 1, 2, 3… 순서 유지
+            // 로컬 정적 경로의 main{코드}.jpg(누끼 원본 파일)만 중복 노출 방지로 제외
+            // 왜 경로 조건을 좁혔나: 예전처럼 'main' 포함 여부만 보면 무작위 이름의 R2 URL이 우연히 걸릴 수 있음
+            if (hasNukki && imgBasePath.startsWith('/static/') && /\/main[^/]*\.(jpe?g|png|webp)$/.test(imgBasePath)) return false;
             return true;
         });
         rawImageList = [heroImage, ...filteredProductImages];

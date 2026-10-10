@@ -1528,8 +1528,9 @@ const syncData = async () => {
                     INSERT OR REPLACE INTO products (
                         code, vendor_code, updated_at, stock, price, original_price, brand, 
                         category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
-                        hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th,
+                        product_images
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
                 
                 rows.forEach(row => {
@@ -1569,10 +1570,25 @@ const syncData = async () => {
                     const description_en = getCell(35);
                     const description_th = getCell(36);
 
+                    // [상세페이지 슬라이드] AC열이 JSON 배열(밴드어드민 업로드 형식)이면 product_images 로도 저장
+                    // 왜: product_images 가 비어 있으면 상세 API가 배열 문자열 전체를 이미지 1장으로 취급해 깨진 이미지가 뜬다.
+                    let product_images = '';
+                    const acRaw = getCell(28);
+                    if (acRaw.startsWith('[')) {
+                        try {
+                            const parsedImages = JSON.parse(acRaw);
+                            if (Array.isArray(parsedImages)) {
+                                const validImages = parsedImages.filter(img => typeof img === 'string' && img.trim() !== '');
+                                if (validImages.length > 0) product_images = JSON.stringify(validImages);
+                            }
+                        } catch (e) { /* 형식이 깨진 값은 무시하고 기존 방식으로 표시 */ }
+                    }
+
                     stmt.run(
                         code, vendor_code, updated_at, stock, price, original_price, brand,
                         category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
-                        hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th
+                        hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th,
+                        product_images
                     );
                 });
                 
@@ -1746,16 +1762,108 @@ app.get('/api/vendors', async (req, res) => {
     }
 });
 
+/**
+ * 카카오 로그인ID 키로 저장된 매장 프로필을 연결된 밴드어드민ID 키로 옮긴다.
+ *
+ * 왜 필요한가:
+ * - 업체 연결(bandadmin_id) 전에 '매장 프로필 관리'에서 저장하면 프로필이 login_id(kakao_xxx)로 저장된다.
+ * - 상품은 밴드어드민ID(vendor_code)로 올라오므로 매장이 두 개로 쪼개지고, 상품 쪽 매장에 "상호명 미등록"이 뜬다.
+ *
+ * 충돌 규칙:
+ * - 밴드어드민ID 쪽 프로필이 없으면 → 그대로 이동
+ * - 둘 다 있으면 → 상호명이 있는 쪽 우선, 둘 다 있으면 더 최근에 수정된 쪽을 남긴다
+ */
+function migrateVendorProfileKey(loginId, bandadminId) {
+    return new Promise((resolve) => {
+        const fromCode = String(loginId || '').trim();
+        const toCode = String(bandadminId || '').trim();
+        if (!fromCode || !toCode || toCode === '-' || fromCode === toCode) return resolve(false);
+
+        db.all('SELECT vendor_code, store_name, updated_at FROM vendor_profiles WHERE vendor_code IN (?, ?)', [fromCode, toCode], (err, rows) => {
+            if (err) {
+                console.error('[VendorProfile] 이동 조회 실패:', err.message);
+                return resolve(false);
+            }
+            const fromRow = (rows || []).find(r => r.vendor_code === fromCode);
+            const toRow = (rows || []).find(r => r.vendor_code === toCode);
+            if (!fromRow) return resolve(false); // 옮길 프로필 없음
+
+            const moveFromRow = () => {
+                db.run('UPDATE vendor_profiles SET vendor_code = ? WHERE vendor_code = ?', [toCode, fromCode], (moveErr) => {
+                    if (moveErr) console.error('[VendorProfile] 이동 실패:', moveErr.message);
+                    else console.log(`[VendorProfile] 프로필 이동: ${fromCode} → ${toCode}`);
+                    resolve(!moveErr);
+                });
+            };
+
+            if (!toRow) return moveFromRow();
+
+            const fromHasName = String(fromRow.store_name || '').trim() !== '';
+            const toHasName = String(toRow.store_name || '').trim() !== '';
+            const fromIsNewer = String(fromRow.updated_at || '') >= String(toRow.updated_at || '');
+
+            if (fromHasName && (!toHasName || fromIsNewer)) {
+                // 카카오ID 쪽 프로필이 더 유효 → 밴드어드민ID 쪽을 지우고 이동
+                db.run('DELETE FROM vendor_profiles WHERE vendor_code = ?', [toCode], (delErr) => {
+                    if (delErr) {
+                        console.error('[VendorProfile] 기존 프로필 삭제 실패:', delErr.message);
+                        return resolve(false);
+                    }
+                    moveFromRow();
+                });
+            } else {
+                // 밴드어드민ID 쪽 프로필이 더 유효 → 남아있는 카카오ID 쪽 중복만 정리
+                db.run('DELETE FROM vendor_profiles WHERE vendor_code = ?', [fromCode], (delErr) => {
+                    if (delErr) console.error('[VendorProfile] 중복 프로필 삭제 실패:', delErr.message);
+                    resolve(!delErr);
+                });
+            }
+        });
+    });
+}
+
+/** 연결된(bandadmin_id 가 있는) 모든 업체에 대해 프로필 키 이동을 1회 수행 */
+function migrateAllVendorProfileKeys() {
+    return new Promise((resolve) => {
+        db.all("SELECT login_id, bandadmin_id FROM customers WHERE bandadmin_id IS NOT NULL AND bandadmin_id NOT IN ('', '-')", [], async (err, rows) => {
+            if (err) {
+                console.error('[VendorProfile] 업체 목록 조회 실패:', err.message);
+                return resolve(0);
+            }
+            let movedCount = 0;
+            for (const r of rows || []) {
+                // 순차 처리: 같은 테이블을 동시에 수정하면 충돌 판정이 꼬일 수 있음
+                if (await migrateVendorProfileKey(r.login_id, r.bandadmin_id)) movedCount++;
+            }
+            if (movedCount > 0) console.log(`[VendorProfile] 총 ${movedCount}개 프로필 정리 완료`);
+            resolve(movedCount);
+        });
+    });
+}
+
+// 서버 시작 후 테이블 생성이 끝날 시간을 두고 1회 실행 (기존에 쪼개진 매장 자동 복구)
+setTimeout(() => {
+    migrateAllVendorProfileKeys().catch(err => console.error('[VendorProfile] 시작 시 정리 실패:', err));
+}, 15000);
+
 // GET /api/vendor-profiles/:vendor_code
 app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
-    let { vendor_code } = req.params;
+    const requestedCode = req.params.vendor_code;
+    let vendor_code = requestedCode;
     db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [vendor_code], (err, cust) => {
         if (!err && cust && cust.bandadmin_id && cust.bandadmin_id !== '-') {
             vendor_code = cust.bandadmin_id;
         }
         db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(row || { vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
+            if (row || vendor_code === requestedCode) {
+                return res.json(row || { vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
+            }
+            // 안전장치: 아직 이동되지 않은(연결 전에 저장된) 카카오ID 키 프로필을 한 번 더 찾아본다
+            db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [requestedCode], (err2, oldRow) => {
+                if (!err2 && oldRow) return res.json({ ...oldRow, vendor_code });
+                res.json({ vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
+            });
         });
     });
 });
@@ -2052,6 +2160,31 @@ app.get('/api/products', async (req, res) => {
 // - 1671번 이후 상품은 추가로 main{code}.jpg (누끼/배경제거) 이미지가 존재
 // - 1393번 이하 초기 상품은 Composites 합성 사진 1장만 존재
 // - DB에 저장된 product_images보다 로컬 파일 기반이 더 정확하고 최신 상태를 반영
+/**
+ * DB 값으로 상세페이지 이미지 목록을 만든다 (로컬 폴더가 없을 때의 폴백)
+ * 왜: 밴드어드민 업로드 상품은 image_url 에 '["url1","url2",...]' 형태의 배열 문자열이 들어오는데,
+ *     이를 그대로 [image_url] 로 감싸면 문자열 전체가 이미지 1장으로 취급되어 깨진 이미지가 표시된다.
+ */
+const buildProductImagesFromDb = (row) => {
+    try {
+        if (Array.isArray(row.product_images) && row.product_images.length > 0) return row.product_images;
+        if (row.product_images && typeof row.product_images === 'string' && row.product_images.trim()) {
+            const parsed = JSON.parse(row.product_images);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch (e) { /* 아래 image_url 폴백으로 진행 */ }
+
+    const rawImageUrl = typeof row.image_url === 'string' ? row.image_url.trim() : '';
+    if (rawImageUrl.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(rawImageUrl);
+            if (Array.isArray(parsed)) return parsed.filter(img => typeof img === 'string' && img.trim() !== '');
+        } catch (e) { /* 깨진 배열 문자열이면 빈 목록 */ }
+        return [];
+    }
+    return rawImageUrl ? [rawImageUrl] : [];
+};
+
 app.get('/api/products/:code', (req, res) => {
     const { code } = req.params;
     db.get(`
@@ -2098,43 +2231,19 @@ app.get('/api/products/:code', (req, res) => {
                     row.product_images = numberedImages;
                 } else {
                     // 폴더는 있지만 번호 파일이 없는 예외 상황 → DB 폴백
-                    try {
-                        if (row.product_images && row.product_images.trim()) {
-                            row.product_images = JSON.parse(row.product_images);
-                        } else {
-                            row.product_images = row.image_url ? [row.image_url] : [];
-                        }
-                    } catch (e) {
-                        row.product_images = row.image_url ? [row.image_url] : [];
-                    }
+                    row.product_images = buildProductImagesFromDb(row);
                 }
             } else if (fs.existsSync(compositePath)) {
                 // [Case B] Composites 합성 사진만 존재 (1393번 이하 초기 상품)
                 row.product_images = [`/static/images/Composites/${code}.jpg`];
             } else {
-                // [Case C] 로컬 이미지 없음 → DB의 product_images 그대로 사용
-                try {
-                    if (row.product_images && row.product_images.trim()) {
-                        row.product_images = JSON.parse(row.product_images);
-                    } else {
-                        row.product_images = row.image_url ? [row.image_url] : [];
-                    }
-                } catch (e) {
-                    row.product_images = row.image_url ? [row.image_url] : [];
-                }
+                // [Case C] 로컬 이미지 없음 → DB의 product_images 사용 (밴드어드민 업로드 상품은 R2 URL 배열)
+                row.product_images = buildProductImagesFromDb(row);
             }
         } catch (fsError) {
             // 파일 시스템 오류 시 안전하게 DB 폴백
             console.error(`[Detail] 이미지 폴더 탐색 오류 (code=${code}):`, fsError.message);
-            try {
-                if (row.product_images && typeof row.product_images === 'string' && row.product_images.trim()) {
-                    row.product_images = JSON.parse(row.product_images);
-                } else {
-                    row.product_images = row.image_url ? [row.image_url] : [];
-                }
-            } catch (e) {
-                row.product_images = row.image_url ? [row.image_url] : [];
-            }
+            row.product_images = buildProductImagesFromDb(row);
         }
 
         res.json(row);
@@ -5323,7 +5432,9 @@ app.put('/api/admin/promote-vendor', (req, res) => {
     db.run(query, [bandadminId.trim(), loginId.trim()], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'NOT_FOUND', message: '가입되지 않은 아이디입니다. 먼저 홈페이지 회원가입을 유도해주세요.' });
-        res.json({ success: true });
+        // 연결 전에 저장해 둔 매장 프로필이 있으면 밴드어드민ID 쪽으로 옮겨 매장이 쪼개지지 않게 한다
+        migrateVendorProfileKey(loginId.trim(), bandadminId.trim())
+            .finally(() => res.json({ success: true }));
     });
 });
 
@@ -5353,7 +5464,12 @@ app.put('/api/admin/update-vendor/:id/bandadmin', (req, res) => {
     db.run(query, [bandadminId.trim(), id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'NOT_FOUND', message: '해당 업체를 찾을 수 없습니다.' });
-        res.json({ success: true });
+        // 밴드어드민ID 변경 시에도 기존 카카오ID 키 프로필을 새 ID 로 옮긴다
+        db.get('SELECT login_id FROM customers WHERE id = ?', [id], (lookupErr, cust) => {
+            if (lookupErr || !cust) return res.json({ success: true });
+            migrateVendorProfileKey(cust.login_id, bandadminId.trim())
+                .finally(() => res.json({ success: true }));
+        });
     });
 });
 
