@@ -1783,28 +1783,39 @@ app.get('/api/vendors', async (req, res) => {
 
 // GET /api/vendor-profiles/:vendor_code
 app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
-    const { vendor_code } = req.params;
-    db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(row || { vendor_code, description: '', rules: '', logo_url: '' });
+    let { vendor_code } = req.params;
+    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [vendor_code], (err, cust) => {
+        if (!err && cust && cust.bandadmin_id && cust.bandadmin_id !== '-') {
+            vendor_code = cust.bandadmin_id;
+        }
+        db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(row || { vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
+        });
     });
 });
 
 // PUT /api/vendor-profiles/:vendor_code
 app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
-    const { vendor_code } = req.params;
-    const { description, rules, logo_url } = req.body;
-    db.run(`
-        INSERT INTO vendor_profiles (vendor_code, description, rules, logo_url, updated_at) 
-        VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
-        ON CONFLICT(vendor_code) DO UPDATE SET 
-            description = excluded.description,
-            rules = excluded.rules,
-            logo_url = excluded.logo_url,
-            updated_at = datetime('now', 'localtime')
-    `, [vendor_code, description || '', rules || '', logo_url || ''], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+    let { vendor_code } = req.params;
+    const { store_name, description, rules, logo_url } = req.body;
+    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [vendor_code], (err, cust) => {
+        if (!err && cust && cust.bandadmin_id && cust.bandadmin_id !== '-') {
+            vendor_code = cust.bandadmin_id;
+        }
+        db.run(`
+            INSERT INTO vendor_profiles (vendor_code, store_name, description, rules, logo_url, updated_at) 
+            VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
+            ON CONFLICT(vendor_code) DO UPDATE SET 
+                store_name = excluded.store_name,
+                description = excluded.description,
+                rules = excluded.rules,
+                logo_url = excluded.logo_url,
+                updated_at = datetime('now', 'localtime')
+        `, [vendor_code, store_name || '', description || '', rules || '', logo_url || ''], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, vendor_code });
+        });
     });
 });
 
