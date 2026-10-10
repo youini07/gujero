@@ -141,6 +141,10 @@ const MyPage = ({ lang }) => {
     const [managedCustomers, setManagedCustomers] = useState([]);
     const [customerLoading, setCustomerLoading] = useState(false);
     const [customerSearch, setCustomerSearch] = useState('');
+
+    // [New] 입점업체 관리 상태
+    const [adminVendors, setAdminVendors] = useState([]);
+    const [adminVendorsLoading, setAdminVendorsLoading] = useState(false);
     
     const [registeredCustomers, setRegisteredCustomers] = useState([]);
     const [regCustLoading, setRegCustLoading] = useState(false);
@@ -701,6 +705,58 @@ const MyPage = ({ lang }) => {
         setCustomerLoading(false);
     }
 
+    // [New] 입점업체 관리 함수들
+    async function loadAdminVendors() {
+        setAdminVendorsLoading(true);
+        try {
+            const res = await fetch('/api/admin/vendors').then(r => r.json());
+            setAdminVendors(res.vendors || []);
+        } catch (err) {
+            console.error('[Admin] Load vendors error:', err);
+        }
+        setAdminVendorsLoading(false);
+    }
+
+    async function handleDemoteVendor(id) {
+        if (!window.confirm('해당 업체의 입점 권한을 취소하고 일반 고객으로 강등하시겠습니까?')) return;
+        try {
+            const res = await fetch(`/api/admin/demote-vendor/${id}`, { method: 'PUT' }).then(r => r.json());
+            if (res.success) {
+                alert('권한이 해제되었습니다.');
+                loadAdminVendors();
+            } else {
+                alert('권한 해제 실패: ' + res.error);
+            }
+        } catch (err) {
+            console.error('[Admin] Demote vendor error:', err);
+            alert('오류가 발생했습니다.');
+        }
+    }
+
+    async function handleUpdateVendorBandadmin(id, currentBandadminId) {
+        const newBandadminId = window.prompt('새로운 밴드어드민 ID를 입력하세요:', currentBandadminId || '');
+        if (newBandadminId === null) return; // 취소
+        if (!newBandadminId.trim()) return alert('밴드어드민 ID를 입력해주세요.');
+
+        try {
+            const res = await fetch(`/api/admin/update-vendor/${id}/bandadmin`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bandadminId: newBandadminId.trim() })
+            }).then(r => r.json());
+            
+            if (res.success) {
+                alert('밴드어드민 ID가 수정되었습니다.');
+                loadAdminVendors();
+            } else {
+                alert('수정 실패: ' + (res.message || res.error));
+            }
+        } catch (err) {
+            console.error('[Admin] Update vendor bandadmin error:', err);
+            alert('오류가 발생했습니다.');
+        }
+    }
+
     async function handleRegisterCustomer() {
         if (!customerForm.customer_id.trim()) {
             alert('고객 아이디를 입력해주세요.');
@@ -1221,6 +1277,7 @@ const MyPage = ({ lang }) => {
                 { id: 'admin_coupons', label: '🎟️ 쿠폰관리', icon: '' },
                 { id: 'admin_sales', label: t('admin_tab_sales'), icon: '💰' },
                 { id: 'admin_analytics', label: t('admin_tab_analytics'), icon: '📈' },
+                { id: 'admin_vendors', label: '👑 입점업체 관리', icon: '' },
                 { id: 'profile', label: t('mypage_tab_profile'), icon: '👤' },
             ];
         } else {
@@ -1254,6 +1311,7 @@ const MyPage = ({ lang }) => {
         if (!isAdmin) return;
         if (activeTab === 'admin_orders' || activeTab === 'admin_preorders') loadMyAdminData();
         if (activeTab === 'admin_customers') loadManagedCustomers(customerSearch);
+        if (activeTab === 'admin_vendors') loadAdminVendors();
         if (activeTab === 'admin_products') loadAdminProducts(productSearch, adminProductFilter);
         if (activeTab === 'admin_discounts') loadDiscountItems();
         if (activeTab === 'admin_coupons') loadCoupons();
@@ -2863,6 +2921,76 @@ const MyPage = ({ lang }) => {
                                             </Fragment>
                                         );
                                     })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ===== 탭: 관리자 - 입점업체 관리 ===== */}
+            {activeTab === 'admin_vendors' && (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold">👑 입점업체 관리</h2>
+                        <button onClick={loadAdminVendors} className="text-xs text-gray-400 hover:text-black underline">{t('refresh')}</button>
+                    </div>
+
+                    {adminVendorsLoading ? (
+                        <div className="text-center py-10 text-gray-500 font-bold">{t('loading')}</div>
+                    ) : adminVendors.length === 0 ? (
+                        <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-xl">등록된 입점업체가 없습니다.</div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500 border-b border-gray-100">
+                                        <th className="px-4 py-3 font-black">가입일</th>
+                                        <th className="px-4 py-3 font-black">상호명 (이름)</th>
+                                        <th className="px-4 py-3 font-black">카카오 ID</th>
+                                        <th className="px-4 py-3 font-black">연락처</th>
+                                        <th className="px-4 py-3 font-black">밴드어드민 ID</th>
+                                        <th className="px-4 py-3 font-black text-center">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {adminVendors.map(vendor => (
+                                        <tr key={vendor.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-4 py-3 text-xs text-gray-500 font-mono">
+                                                {new Date(vendor.created_at).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-4 py-3 font-bold text-sm">
+                                                {vendor.name || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                                                {vendor.login_id}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                                                {vendor.phone || '-'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="inline-block px-2 py-1 bg-green-50 text-green-700 font-mono text-xs font-bold rounded">
+                                                    {vendor.bandadmin_id || '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <div className="flex justify-center gap-2">
+                                                    <button 
+                                                        onClick={() => handleUpdateVendorBandadmin(vendor.id, vendor.bandadmin_id)}
+                                                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-bold rounded transition-colors"
+                                                    >
+                                                        ID 수정
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDemoteVendor(vendor.id)}
+                                                        className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold rounded transition-colors"
+                                                    >
+                                                        권한 해제
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>

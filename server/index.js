@@ -5350,6 +5350,36 @@ app.put('/api/admin/promote-vendor', (req, res) => {
     });
 });
 
+app.get('/api/admin/vendors', (req, res) => {
+    const query = `SELECT id, login_id, customer_id, name, phone, role, bandadmin_id, created_at FROM customers WHERE role = 'vendor' ORDER BY created_at DESC`;
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ vendors: rows });
+    });
+});
+
+app.put('/api/admin/demote-vendor/:id', (req, res) => {
+    const { id } = req.params;
+    const query = `UPDATE customers SET role = 'customer', bandadmin_id = NULL WHERE id = ?`;
+    db.run(query, [id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+app.put('/api/admin/update-vendor/:id/bandadmin', (req, res) => {
+    const { id } = req.params;
+    const { bandadminId } = req.body;
+    if (!bandadminId) return res.status(400).json({ error: 'MISSING', message: '밴드어드민 ID를 입력해주세요.' });
+
+    const query = `UPDATE customers SET bandadmin_id = ? WHERE id = ? AND role = 'vendor'`;
+    db.run(query, [bandadminId.trim(), id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'NOT_FOUND', message: '해당 업체를 찾을 수 없습니다.' });
+        res.json({ success: true });
+    });
+});
+
 // =============================================
 // 입점 사장님(Vendor) 전용 API
 // =============================================
