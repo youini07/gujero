@@ -832,6 +832,7 @@ db.serialize(() => {
         db.run("ALTER TABLE customers ADD COLUMN kakao_url TEXT", (err) => {
             // 에러 무시 (이미 컬럼이 있는 경우 에러 발생)
         });
+        db.run("ALTER TABLE customers ADD COLUMN bandadmin_id TEXT", (err) => {});
     });
 
     // 2. 장바구니 테이블
@@ -5342,7 +5343,7 @@ app.put('/api/admin/promote-vendor', (req, res) => {
     const { loginId, bandadminId } = req.body;
     if (!loginId || !bandadminId) return res.status(400).json({ error: 'MISSING', message: '카카오 ID와 밴드어드민 ID를 모두 입력해주세요.' });
 
-    const query = `UPDATE customers SET role = 'vendor', bandadmin_id = ? WHERE login_id = ?`;
+    const query = `UPDATE customers SET role = CASE WHEN role = 'admin' THEN 'admin' ELSE 'vendor' END, bandadmin_id = ? WHERE login_id = ?`;
     db.run(query, [bandadminId.trim(), loginId.trim()], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'NOT_FOUND', message: '가입되지 않은 아이디입니다. 먼저 홈페이지 회원가입을 유도해주세요.' });
@@ -5351,7 +5352,7 @@ app.put('/api/admin/promote-vendor', (req, res) => {
 });
 
 app.get('/api/admin/vendors', (req, res) => {
-    const query = `SELECT id, login_id, customer_id, name, phone, role, bandadmin_id, created_at FROM customers WHERE role IN ('vendor', 'admin') ORDER BY created_at DESC`;
+    const query = `SELECT id, login_id, name, phone, role, bandadmin_id, created_at FROM customers WHERE role IN ('vendor', 'admin') ORDER BY created_at DESC`;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ vendors: rows });
