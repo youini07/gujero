@@ -1104,45 +1104,6 @@ if (!fs.existsSync(persistentVendorDir)) {
 }
 app.use('/static/vendors', express.static(persistentVendorDir, { maxAge: '7d' }));
 
-app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
-    const { vendor_code } = req.params;
-    db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.json({ vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
-        res.json(row);
-    });
-});
-
-app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
-    const { vendor_code } = req.params;
-    const { store_name, description, rules, logo_url } = req.body;
-    
-    db.run(
-        `INSERT INTO vendor_profiles (vendor_code, store_name, description, rules, logo_url, updated_at) 
-         VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
-         ON CONFLICT(vendor_code) DO UPDATE SET 
-            store_name = excluded.store_name, 
-            description = excluded.description,
-            rules = excluded.rules,
-            logo_url = excluded.logo_url,
-            updated_at = datetime('now', 'localtime')`,
-        [vendor_code, store_name || '', description || '', rules || '', logo_url || ''],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, vendor_code });
-        }
-    );
-});
-
-app.post('/api/vendor-profiles/:vendor_code/logo', vendorLogoUpload.single('image'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-    // /static/vendors/... 형태로 반환
-    const fileUrl = `/static/vendors/${req.file.filename}`;
-    res.json({ success: true, url: fileUrl });
-});
-
 
 // ─── 할인 상품 API ────────────────────────────────
 
