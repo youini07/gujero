@@ -718,6 +718,10 @@ const MyPage = ({ lang }) => {
     }
 
     async function handleDemoteVendor(id) {
+        if (user && String(user.id) === String(id)) {
+            alert('자기 자신의 계정은 권한 해제할 수 없습니다.');
+            return;
+        }
         if (!window.confirm('해당 업체의 입점 권한을 취소하고 일반 고객으로 강등하시겠습니까?')) return;
         try {
             const res = await fetch(`/api/admin/demote-vendor/${id}`, { method: 'PUT' }).then(r => r.json());

@@ -5337,7 +5337,7 @@ app.get('/api/admin/vendors', (req, res) => {
 
 app.put('/api/admin/demote-vendor/:id', (req, res) => {
     const { id } = req.params;
-    const query = `UPDATE customers SET role = 'customer', bandadmin_id = NULL WHERE id = ? AND role = 'vendor'`;
+    const query = `UPDATE customers SET role = 'customer', bandadmin_id = NULL WHERE id = ? AND role IN ('vendor', 'admin')`;
     db.run(query, [id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
