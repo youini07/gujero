@@ -1548,7 +1548,10 @@ const syncData = async () => {
         const rows = res.data.values || [];
         console.log(`[Sync] Fetched ${rows.length} rows from Google Sheets.`);
         
-        if (rows.length === 0) return { success: true, message: 'No data to sync' };
+        if (rows.length === 0) {
+            await new Promise((resolve) => db.run('DELETE FROM products', () => resolve()));
+            return { success: true, message: 'Cleared all products' };
+        }
 
         // SQLite에 vendor_code 컬럼 안전 추가 (이미 있으면 에러 무시됨)
         await new Promise((resolve) => {
