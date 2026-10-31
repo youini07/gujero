@@ -389,11 +389,12 @@ const RecommendPage = ({ lang }) => {
                                             className="snap-start w-[140px] md:w-[160px] flex flex-col group cursor-pointer"
                                         >
                                             {/* 이미지 영역: 원본 비율 유지 (좌우 잘림 방지) */}
-                                            <div className="w-full bg-gray-100 rounded-md overflow-hidden relative mb-2">
+                                            {/* 왜 3:4 세로형(aspect-[3/4])으로 지정하는가: 960x1280 세로형 누끼/원본 썸네일 비율에 맞춰 추천 테마 가로 스크롤 카드 높이를 균일하게 유지하기 위함 */}
+                                            <div className="w-full aspect-[3/4] bg-gray-100 rounded-md overflow-hidden relative mb-2">
                                                 <img 
                                                     src={localThumb}
                                                     alt={product.name} 
-                                                    className="w-full h-auto block group-hover:scale-105 transition-transform duration-500"
+                                                    className="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-500"
                                                     loading="lazy"
                                                     onError={(e) => {
                                                         const fallbackImg = '/static/nophoto.png';

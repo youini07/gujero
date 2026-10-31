@@ -377,7 +377,7 @@ const DetailPage = ({ lang }) => {
                             {imageList.map((img, idx) => (
                                 <div 
                                     key={idx} 
-                                    className="flex-none w-full snap-center relative aspect-[4/5] flex items-center justify-center cursor-zoom-in"
+                                    className="flex-none w-full snap-center relative aspect-[3/4] flex items-center justify-center cursor-zoom-in"
                                     onClick={() => openLightbox(idx)}
                                 >
                                     <img

@@ -1503,7 +1503,7 @@ const syncData = async () => {
         
         const res = await sheets.spreadsheets.values.get({ 
             spreadsheetId: SPREADSHEET_ID, 
-            range: '홈페이지!A2:AL' // A부터 AL까지 (38개 열)
+            range: '홈페이지!A2:AM' // A부터 AM까지 (39개 열 — AM열 삭제 상태 포함)
         });
         
         const rows = res.data.values || [];
@@ -1676,7 +1676,14 @@ app.get('/api/debug-search-product/:code', (req, res) => {
 app.post('/api/admin/sync-now', (req, res) => {
     const { exec } = require('child_process');
     const pythonCmd = process.env.VIRTUAL_ENV ? 'python' : 'python3';
-    exec(`${pythonCmd} catalog_app_v2/server/migrate_data.py`, (err, stdout, stderr) => {
+    const scriptCandidates = [
+        path.resolve(__dirname, 'migrate_data.py'),
+        path.resolve(process.cwd(), 'server', 'migrate_data.py'),
+        path.resolve(process.cwd(), 'migrate_data.py'),
+        path.resolve(process.cwd(), 'catalog_app_v2', 'server', 'migrate_data.py')
+    ];
+    const targetScript = scriptCandidates.find(p => fs.existsSync(p)) || scriptCandidates[0];
+    exec(`${pythonCmd} "${targetScript}"`, (err, stdout, stderr) => {
         res.json({
             success: !err,
             stdout,

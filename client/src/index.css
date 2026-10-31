@@ -32,14 +32,16 @@
 
   .product-img {
     @apply w-full object-cover bg-softBackground rounded-xl;
-    aspect-ratio: 800/674;
+    /* 왜 3/4(960x1280) 비율로 변경했는가: 오픈마켓 업로드 프로그램(nukki_remover.py)의 누끼 썸네일 및 스마트폰 촬영 원본이 3:4 세로형이므로 상하 및 우측 상단 코드번호 잘림을 방지하기 위함 */
+    aspect-ratio: 3/4;
     /* [수정] 조명 그림자 상쇄 및 보정 효과 강조 (대비 8%, 밝기 4% 증가, 입체감 부여) */
     filter: contrast(1.08) brightness(1.04) drop-shadow(0 4px 6px rgba(0,0,0,0.08));
   }
 
   .product-img-archive {
     @apply w-full object-contain object-top bg-softBackground rounded-xl mx-auto;
-    aspect-ratio: 800/674;
+    /* 왜 3/4(960x1280) 비율로 변경했는가: 오픈마켓 업로드 프로그램(nukki_remover.py)의 누끼 썸네일 및 스마트폰 촬영 원본이 3:4 세로형이므로 상하 및 우측 상단 코드번호 잘림을 방지하기 위함 */
+    aspect-ratio: 3/4;
     /* [수정] 조명 그림자 상쇄 및 보정 효과 강조 */
     filter: contrast(1.08) brightness(1.04) drop-shadow(0 4px 6px rgba(0,0,0,0.08));
   }
@@ -47,7 +49,7 @@
   /* Zoom Image */
   .zoom-container {
     @apply relative w-full overflow-hidden rounded-xl bg-gray-50;
-    aspect-ratio: 9/8;
+    aspect-ratio: 3/4;
   }
 
   .zoom-container img {
