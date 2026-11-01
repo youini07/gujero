@@ -254,7 +254,7 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                                 <div className="truncate"><span className="font-bold text-black">{lang === 'KR' ? '실측' : 'Actual'}:</span> <span className="text-black font-medium">
                                     {String(product.measured_size).split(',').map(s => {
                                         const val = parseFloat(s);
-                                        return isNaN(val) ? s.trim() : `${val}" (${Math.round(val * 2.54)}cm)`;
+                                        return isNaN(val) ? s.trim() : `${val}cm (${Number((val / 2.54).toFixed(1))}")`;
                                     }).join(' / ')}
                                 </span></div>
                             )}

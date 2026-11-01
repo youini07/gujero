@@ -108,16 +108,16 @@ const CheckoutPage = ({ lang }) => {
                 const itemName = lang === 'EN' && item.name_en ? item.name_en 
                     : lang === 'TH' && item.name_th ? item.name_th 
                     : item.name;
-                return `- [${item.brand || ''}] ${itemName} x${item.quantity} (฿${(Number(item.price) || 0).toLocaleString()})`;
+                return `- [${item.brand || ''}] ${itemName} x${item.quantity} (₩${(Number(item.price) || 0).toLocaleString()})`;
             })
             .join('\n');
 
         // 다국어 메시지 템플릿
         const msgText = lang === 'KR'
-            ? `[Gujero 구매신청 알림]\n\n주문번호: ${orderResult.orderNumber}\n고객명: ${user.name}\n연락처: ${user.phone}\n\n[주문 상품]\n${itemsList}\n\n총 결제금액: ฿${orderResult.totalAmount.toLocaleString()}\n\n구매신청이 완료되었습니다. 확인 부탁드립니다!`
+            ? `[Gujero 구매신청 알림]\n\n주문번호: ${orderResult.orderNumber}\n고객명: ${user.name}\n연락처: ${user.phone}\n\n[주문 상품]\n${itemsList}\n\n총 결제금액: ₩${orderResult.totalAmount.toLocaleString()}\n\n구매신청이 완료되었습니다. 확인 부탁드립니다!`
             : lang === 'TH'
-            ? `[Gujero แจ้งสั่งซื้อ]\n\nเลขที่สั่งซื้อ: ${orderResult.orderNumber}\nชื่อลูกค้า: ${user.name}\nเบอร์โทร: ${user.phone}\n\n[รายการสินค้า]\n${itemsList}\n\nยอดรวม: ฿${orderResult.totalAmount.toLocaleString()}\n\nสั่งซื้อเรียบร้อยแล้ว กรุณาตรวจสอบครับ/ค่ะ!`
-            : `[Gujero Order Notification]\n\nOrder No: ${orderResult.orderNumber}\nCustomer: ${user.name}\nPhone: ${user.phone}\n\n[Ordered Items]\n${itemsList}\n\nTotal: ฿${orderResult.totalAmount.toLocaleString()}\n\nOrder has been placed. Please confirm!`;
+            ? `[Gujero แจ้งสั่งซื้อ]\n\nเลขที่สั่งซื้อ: ${orderResult.orderNumber}\nชื่อลูกค้า: ${user.name}\nเบอร์โทร: ${user.phone}\n\n[รายการสินค้า]\n${itemsList}\n\nยอดรวม: ₩${orderResult.totalAmount.toLocaleString()}\n\nสั่งซื้อเรียบร้อยแล้ว กรุณาตรวจสอบครับ/ค่ะ!`
+            : `[Gujero Order Notification]\n\nOrder No: ${orderResult.orderNumber}\nCustomer: ${user.name}\nPhone: ${user.phone}\n\n[Ordered Items]\n${itemsList}\n\nTotal: ₩${orderResult.totalAmount.toLocaleString()}\n\nOrder has been placed. Please confirm!`;
 
         const msgUrlEncoded = encodeURIComponent(msgText);
         const lineUrl = `https://line.me/R/oaMessage/@102ipvys/?${msgUrlEncoded}`;
@@ -155,7 +155,7 @@ const CheckoutPage = ({ lang }) => {
                         <p className="text-sm text-gray-400">{t('checkout_order_number')}</p>
                         <p className="text-2xl font-mono font-bold text-black">{orderResult.orderNumber}</p>
                         <p className="text-sm text-gray-500 mt-2">
-                            {t('checkout_total')}: <span className="font-bold">฿{orderResult.totalAmount.toLocaleString()}</span>
+                            {t('checkout_total')}: <span className="font-bold">₩{orderResult.totalAmount.toLocaleString()}</span>
                         </p>
                     </div>
 
@@ -300,7 +300,7 @@ const CheckoutPage = ({ lang }) => {
                                     {lang === 'EN' && item.name_en ? item.name_en : lang === 'TH' && item.name_th ? item.name_th : item.name}
                                 </span>
                                 <span className="font-medium shrink-0">
-                                    ฿{(Number(item.price) || 0).toLocaleString()}
+                                    ₩{(Number(item.price) || 0).toLocaleString()}
                                 </span>
                             </div>
                         ))}
@@ -308,17 +308,17 @@ const CheckoutPage = ({ lang }) => {
                     <div className="border-t border-gray-100 pt-4">
                         <div className="flex justify-between text-sm font-medium text-gray-500 mb-2">
                             <span>상품 합계</span>
-                            <span>฿{itemsSubtotal.toLocaleString()}</span>
+                            <span>₩{itemsSubtotal.toLocaleString()}</span>
                         </div>
                         {appliedCoupon && discountAmount > 0 && (
                             <div className="flex justify-between text-sm font-medium text-red-500 mb-2">
                                 <span>쿠폰 할인 ({appliedCoupon.type === 'amount' ? '정액' : `${appliedCoupon.value}%`})</span>
-                                <span>-฿{discountAmount.toLocaleString()}</span>
+                                <span>-₩{discountAmount.toLocaleString()}</span>
                             </div>
                         )}
                         <div className="flex justify-between text-lg font-bold">
                             <span>{t('checkout_total')}</span>
-                            <span>฿{finalTotal.toLocaleString()}</span>
+                            <span>₩{finalTotal.toLocaleString()}</span>
                         </div>
                     </div>
                 </div>
@@ -356,7 +356,7 @@ const CheckoutPage = ({ lang }) => {
                             </div>
                             <p className="text-sm text-green-600 mb-3">
                                 {appliedCoupon.type === 'amount' 
-                                    ? (t('coupon_desc_amount') || '결제 금액에서 ฿{value} 정액 할인을 받습니다.').replace('{value}', appliedCoupon.value)
+                                    ? (t('coupon_desc_amount') || '결제 금액에서 ₩{value} 정액 할인을 받습니다.').replace('{value}', appliedCoupon.value)
                                     : (t('coupon_desc_rate') || '선택하신 상품에서 {value}% 할인을 받습니다.').replace('{value}', appliedCoupon.value)}
                             </p>
                             
@@ -376,7 +376,7 @@ const CheckoutPage = ({ lang }) => {
                                                 />
                                                 <div className="flex-1 flex justify-between text-sm">
                                                     <span className="line-clamp-1">{lang === 'EN' && item.name_en ? item.name_en : lang === 'TH' && item.name_th ? item.name_th : item.name}</span>
-                                                    <span className="font-bold text-gray-900">฿{(Number(item.price) || 0).toLocaleString()}</span>
+                                                    <span className="font-bold text-gray-900">₩{(Number(item.price) || 0).toLocaleString()}</span>
                                                 </div>
                                             </label>
                                         ))}

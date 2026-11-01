@@ -218,10 +218,10 @@ const DetailPage = ({ lang }) => {
         let msgTemplate = getTranslation(tLang, 'line_inquiry_msg');
         if (!msgTemplate || msgTemplate === 'line_inquiry_msg') {
             msgTemplate = tLang === 'KR'
-                ? '[{brand}] {name} (코드: {code})\n가격: ฿{price}\n링크: {link}\n\n안녕하세요, 구매 문의드립니다!'
+                ? '[{brand}] {name} (코드: {code})\n가격: ₩{price}\n링크: {link}\n\n안녕하세요, 구매 문의드립니다!'
                 : tLang === 'TH'
-                ? '[{brand}] {name} (รหัส: {code})\nราคา: ฿{price}\nลิงก์: {link}\n\nสวัสดีครับ/ค่ะ สนใจสั่งซื้อสินค้าครับ/ค่ะ!'
-                : '[{brand}] {name} (Code: {code})\nPrice: ฿{price}\nLink: {link}\n\nHello, I would like to inquire about this item!';
+                ? '[{brand}] {name} (รหัส: {code})\nราคา: ₩{price}\nลิงก์: {link}\n\nสวัสดีครับ/ค่ะ สนใจสั่งซื้อสินค้าครับ/ค่ะ!'
+                : '[{brand}] {name} (Code: {code})\nPrice: ₩{price}\nLink: {link}\n\nHello, I would like to inquire about this item!';
         }
         
         const textToCopy = msgTemplate
@@ -479,7 +479,7 @@ const DetailPage = ({ lang }) => {
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-gray-400 font-bold text-[11px] md:text-[13px] whitespace-nowrap w-20 md:w-24">{tWidth}</span> 
                                                         <span className="font-bold text-gray-800 text-[14px] md:text-[16px] whitespace-nowrap">
-                                                            {isNaN(parseFloat(width)) ? width : `${parseFloat(width)}" (${Math.round(parseFloat(width) * 2.54)}cm)`}
+                                                            {isNaN(parseFloat(width)) ? width : `${parseFloat(width)}cm (${Number((parseFloat(width) / 2.54).toFixed(1))}")`}
                                                         </span>
                                                     </div>
                                                 )}
@@ -487,7 +487,7 @@ const DetailPage = ({ lang }) => {
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-gray-400 font-bold text-[11px] md:text-[13px] whitespace-nowrap w-20 md:w-24">{tLength}</span> 
                                                         <span className="font-bold text-gray-800 text-[14px] md:text-[16px] whitespace-nowrap">
-                                                            {isNaN(parseFloat(length)) ? length : `${parseFloat(length)}" (${Math.round(parseFloat(length) * 2.54)}cm)`}
+                                                            {isNaN(parseFloat(length)) ? length : `${parseFloat(length)}cm (${Number((parseFloat(length) / 2.54).toFixed(1))}")`}
                                                         </span>
                                                     </div>
                                                 )}
@@ -504,7 +504,7 @@ const DetailPage = ({ lang }) => {
                         <span className="text-gray-400 font-bold uppercase tracking-wider text-[11px] md:text-[13px] whitespace-nowrap">
                             {getTranslation(tLang, 'code_label')}
                         </span>
-                        <span className="font-black text-blue-600 text-[18px] md:text-[22px] whitespace-nowrap">
+                        <span className="font-black text-black text-[18px] md:text-[22px] whitespace-nowrap">
                             {code.startsWith('TEMP_') ? (tLang === 'KR' ? '도착 예정' : 'TBD') : code}
                         </span>
                     </div>
@@ -665,7 +665,7 @@ const DetailPage = ({ lang }) => {
                     {product.hashtags && (
                         <div className="flex flex-wrap gap-x-3 md:gap-x-4 gap-y-1 md:gap-y-2">
                             {product.hashtags.split(' ').map((tag, idx) => (
-                                <span key={idx} className="text-blue-500 text-[13px] md:text-[15px] font-bold hover:underline transition-all cursor-default">
+                                <span key={idx} className="text-black text-[13px] md:text-[15px] font-bold hover:underline transition-all cursor-default">
                                     {tag}
                                 </span>
                             ))}

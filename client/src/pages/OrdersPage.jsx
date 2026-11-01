@@ -102,7 +102,7 @@ const OrdersPage = ({ lang }) => {
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(order.status)}`}>
                                         {getStatusLabel(order.status)}
                                     </span>
-                                    <span className="font-bold text-sm">฿{Number(order.total_amount).toLocaleString()}</span>
+                                    <span className="font-bold text-sm">₩{Number(order.total_amount).toLocaleString()}</span>
                                 </div>
                             </div>
 
@@ -114,7 +114,7 @@ const OrdersPage = ({ lang }) => {
                                             [{item.brand}] {lang === 'EN' && item.name_en ? item.name_en : lang === 'TH' && item.name_th ? item.name_th : item.name} × {item.quantity}
                                         </span>
                                         <span className="font-medium text-gray-900 shrink-0">
-                                            ฿{item.subtotal.toLocaleString()}
+                                            ₩{item.subtotal.toLocaleString()}
                                         </span>
                                     </div>
                                 ))}

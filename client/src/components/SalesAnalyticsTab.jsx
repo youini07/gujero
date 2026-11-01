@@ -20,10 +20,10 @@ const SalesAnalyticsTab = ({ sales, t }) => {
         const categoriesRevenue = {};
         
         const tiers = {
-            '~ 500฿': 0,
-            '500 ~ 1000฿': 0,
-            '1000 ~ 1500฿': 0,
-            '1500฿ +': 0
+            '~ 500₩': 0,
+            '500 ~ 1000₩': 0,
+            '1000 ~ 1500₩': 0,
+            '1500₩ +': 0
         };
 
         // 주문별로 그룹화하여 무료배송 건수 집계
@@ -51,10 +51,10 @@ const SalesAnalyticsTab = ({ sales, t }) => {
                 categoriesCount[cat] = (categoriesCount[cat] || 0) + 1;
                 categoriesRevenue[cat] = (categoriesRevenue[cat] || 0) + price;
                 
-                if (price < 500) tiers['~ 500฿']++;
-                else if (price < 1000) tiers['500 ~ 1000฿']++;
-                else if (price < 1500) tiers['1000 ~ 1500฿']++;
-                else tiers['1500฿ +']++;
+                if (price < 500) tiers['~ 500₩']++;
+                else if (price < 1000) tiers['500 ~ 1000₩']++;
+                else if (price < 1500) tiers['1000 ~ 1500₩']++;
+                else tiers['1500₩ +']++;
             }
         });
 
@@ -104,15 +104,15 @@ const SalesAnalyticsTab = ({ sales, t }) => {
                 </div>
                 <div className="bg-gradient-to-br from-black to-gray-800 p-5 rounded-2xl shadow-sm text-white flex flex-col items-center justify-center text-center">
                     <p className="text-[10px] sm:text-xs text-gray-300 font-bold mb-1 uppercase bg-white/10 px-2 py-0.5 rounded">{t('analytics_kpi_sales') || 'Total Revenue'}</p>
-                    <p className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-100 filter drop-shadow">฿{totalRevenue.toLocaleString()}</p>
+                    <p className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-100 filter drop-shadow">₩{totalRevenue.toLocaleString()}</p>
                 </div>
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-red-50 flex flex-col items-center justify-center text-center">
                     <p className="text-[10px] sm:text-xs text-red-400 font-bold mb-1 uppercase bg-red-50 px-2 py-0.5 rounded">{t('analytics_kpi_shipping_cost') || 'Shipping Expense'}</p>
-                    <p className="text-xl sm:text-2xl font-black text-red-500">฿{totalShippingExpense.toLocaleString()}</p>
+                    <p className="text-xl sm:text-2xl font-black text-red-500">₩{totalShippingExpense.toLocaleString()}</p>
                 </div>
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
                     <p className="text-[10px] sm:text-xs text-gray-400 font-bold mb-1 uppercase bg-blue-50 text-blue-600 px-2 py-0.5 rounded whitespace-nowrap">{t('analytics_kpi_asp') || 'ASP'}</p>
-                    <p className="text-xl sm:text-2xl font-black">฿{asp.toLocaleString()}</p>
+                    <p className="text-xl sm:text-2xl font-black">₩{asp.toLocaleString()}</p>
                 </div>
             </div>
 
@@ -134,7 +134,7 @@ const SalesAnalyticsTab = ({ sales, t }) => {
                                         <p className="text-[10px] text-gray-400">{(t('analytics_sales_count') || '{count} items').replace('{count}', b.count)}</p>
                                     </div>
                                 </div>
-                                <span className="text-sm font-black whitespace-nowrap">฿{b.revenue.toLocaleString()}</span>
+                                <span className="text-sm font-black whitespace-nowrap">₩{b.revenue.toLocaleString()}</span>
                             </div>
                         )) : <p className="text-xs text-gray-400 text-center py-4">데이터 없음</p>}
                     </div>
@@ -157,7 +157,7 @@ const SalesAnalyticsTab = ({ sales, t }) => {
                                         <p className="text-[10px] text-gray-400">{(t('analytics_sales_count') || '{count} items').replace('{count}', c.count)}</p>
                                     </div>
                                 </div>
-                                <span className="text-sm font-black whitespace-nowrap">฿{c.revenue.toLocaleString()}</span>
+                                <span className="text-sm font-black whitespace-nowrap">₩{c.revenue.toLocaleString()}</span>
                             </div>
                         )) : <p className="text-xs text-gray-400 text-center py-4">데이터 없음</p>}
                     </div>

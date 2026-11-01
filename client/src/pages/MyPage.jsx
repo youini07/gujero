@@ -617,21 +617,21 @@ const MyPage = ({ lang }) => {
         
         productItems.forEach(it => {
             const name = lang === 'EN' && it.name_en ? it.name_en : lang === 'TH' && it.name_th ? it.name_th : it.name;
-            text += `- [${it.brand || ''}] ${name} (${it.quantity || 1}) : ฿${Number(it.subtotal || 0).toLocaleString()}\n`;
+            text += `- [${it.brand || ''}] ${name} (${it.quantity || 1}) : ₩${Number(it.subtotal || 0).toLocaleString()}\n`;
         });
         
         if (shippingItem && shippingItem.subtotal > 0) {
-            text += `- Shipping Fee : ฿${Number(shippingItem.subtotal).toLocaleString()}\n`;
+            text += `- Shipping Fee : ₩${Number(shippingItem.subtotal).toLocaleString()}\n`;
         } else {
             text += `- Shipping Fee : Free\n`;
         }
         
-        text += `\nTotal Product: ฿${Number(order.total_amount || 0).toLocaleString()}\n`;
+        text += `\nTotal Product: ₩${Number(order.total_amount || 0).toLocaleString()}\n`;
         if (shippingItem && shippingItem.subtotal > 0) {
-            text += `Total Shipping: ฿${Number(shippingItem.subtotal).toLocaleString()}\n`;
-            text += `Grand Total: ฿${(Number(order.total_amount || 0) + Number(shippingItem.subtotal)).toLocaleString()}\n`;
+            text += `Total Shipping: ₩${Number(shippingItem.subtotal).toLocaleString()}\n`;
+            text += `Grand Total: ₩${(Number(order.total_amount || 0) + Number(shippingItem.subtotal)).toLocaleString()}\n`;
         } else {
-            text += `Grand Total: ฿${Number(order.total_amount || 0).toLocaleString()} (Free Shipping)\n`;
+            text += `Grand Total: ₩${Number(order.total_amount || 0).toLocaleString()} (Free Shipping)\n`;
         }
 
         navigator.clipboard.writeText(text).then(() => {
@@ -2067,11 +2067,11 @@ const MyPage = ({ lang }) => {
                                             {/* 할인가 표시 (배송 탭에서도 동일) */}
                                             {item.catalog_price && item.catalog_price > (item.sold_price || item.subtotal) ? (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="line-through text-gray-300">฿{(item.catalog_price * (item.quantity || 1)).toLocaleString()}</span>
-                                                    <span className="font-bold text-red-500">฿{item.subtotal?.toLocaleString()}</span>
+                                                    <span className="line-through text-gray-300">₩{(item.catalog_price * (item.quantity || 1)).toLocaleString()}</span>
+                                                    <span className="font-bold text-red-500">₩{item.subtotal?.toLocaleString()}</span>
                                                 </div>
                                             ) : (
-                                                <span>฿{item.subtotal?.toLocaleString()}</span>
+                                                <span>₩{item.subtotal?.toLocaleString()}</span>
                                             )}
                                         </div>
                                     ))}
@@ -2116,7 +2116,7 @@ const MyPage = ({ lang }) => {
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(order.status)}`}>
                                                 {getStatusLabel(order.status)}
                                             </span>
-                                            <span className="font-bold text-sm">฿{Number(order.total_amount).toLocaleString()}</span>
+                                            <span className="font-bold text-sm">₩{Number(order.total_amount).toLocaleString()}</span>
                                         </div>
                                     </div>
                                     <div className="px-6 py-4 space-y-2">
@@ -2126,11 +2126,11 @@ const MyPage = ({ lang }) => {
                                                 {/* 할인가 표시: 카탈로그 원가와 실제 결제가가 다를 때 취소선 + 할인가 강조 */}
                                                 {item.catalog_price && item.catalog_price > (item.sold_price || item.subtotal) ? (
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-gray-400 line-through">฿{(item.catalog_price * (item.quantity || 1)).toLocaleString()}</span>
-                                                        <span className="font-bold text-red-500">฿{item.subtotal?.toLocaleString()}</span>
+                                                        <span className="text-xs text-gray-400 line-through">₩{(item.catalog_price * (item.quantity || 1)).toLocaleString()}</span>
+                                                        <span className="font-bold text-red-500">₩{item.subtotal?.toLocaleString()}</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="font-medium text-gray-900">฿{item.subtotal?.toLocaleString()}</span>
+                                                    <span className="font-medium text-gray-900">₩{item.subtotal?.toLocaleString()}</span>
                                                 )}
                                             </div>
                                         ))}
@@ -2543,7 +2543,7 @@ const MyPage = ({ lang }) => {
                                                                 {/* 가격 수정 UI */}
                                                                 {order.status === 'preorder_pending' && it.is_preorder ? (
                                                                     <div className="flex items-center gap-1 bg-indigo-50/30 border border-indigo-100/50 rounded px-2.5 py-1 animate-pulse-subtle">
-                                                                        <span className="text-xs text-indigo-600 font-bold">책정가: ฿</span>
+                                                                        <span className="text-xs text-indigo-600 font-bold">책정가: ₩</span>
                                                                         <input 
                                                                             type="number"
                                                                             placeholder="가격 입력"
@@ -2579,11 +2579,11 @@ const MyPage = ({ lang }) => {
                                                                     </div>
                                                                 ) : it.code === 'SHIPPING_FEE' ? (
                                                                     <div className="flex items-center gap-1 px-2 py-1">
-                                                                        <span className="font-mono font-black text-gray-900">฿{it.subtotal?.toLocaleString()}</span>
+                                                                        <span className="font-mono font-black text-gray-900">₩{it.subtotal?.toLocaleString()}</span>
                                                                     </div>
                                                                 ) : isEditing ? (
                                                                     <div className="flex items-center gap-1">
-                                                                        <span className="text-xs text-gray-400">฿</span>
+                                                                        <span className="text-xs text-gray-400">₩</span>
                                                                         <input 
                                                                             type="number"
                                                                             className="w-20 px-2 py-1 border rounded text-right font-mono font-bold text-sm outline-none focus:ring-2 focus:ring-black"
@@ -2602,7 +2602,7 @@ const MyPage = ({ lang }) => {
                                                                         className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors"
                                                                         onClick={() => setEditingItem({ orderNumber: order.order_number, code: it.code, price: it.price })}
                                                                     >
-                                                                        <span className="font-mono font-black text-gray-900">฿{it.subtotal?.toLocaleString()}</span>
+                                                                        <span className="font-mono font-black text-gray-900">₩{it.subtotal?.toLocaleString()}</span>
                                                                         <span className="text-[10px] text-gray-300">✎</span>
                                                                     </div>
                                                                 )}
@@ -2904,14 +2904,14 @@ const MyPage = ({ lang }) => {
                                                                                 </div>
                                                                                 <div className="flex items-center gap-2">
                                                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusStyle(ord.status)}`}>{getStatusLabel(ord.status)}</span>
-                                                                                    <span className="font-bold text-xs">฿{Number(ord.total_amount).toLocaleString()}</span>
+                                                                                    <span className="font-bold text-xs">₩{Number(ord.total_amount).toLocaleString()}</span>
                                                                                 </div>
                                                                             </div>
                                                                             <div className="space-y-1">
                                                                                 {(ord.items || []).map((it, idx) => (
                                                                                     <div key={idx} className="flex justify-between text-[11px] text-gray-500">
                                                                                         <span>[{it.brand}] {lang === 'EN' && it.name_en ? it.name_en : lang === 'TH' && it.name_th ? it.name_th : it.name} × {it.quantity}</span>
-                                                                                        <span>฿{it.subtotal?.toLocaleString()}</span>
+                                                                                        <span>₩{it.subtotal?.toLocaleString()}</span>
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
@@ -3082,7 +3082,7 @@ const MyPage = ({ lang }) => {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{product.brand}</td>
-                                                    <td className="px-4 py-4 font-black text-gray-900 whitespace-nowrap">฿{Number(product.price).toLocaleString()}</td>
+                                                    <td className="px-4 py-4 font-black text-gray-900 whitespace-nowrap">₩{Number(product.price).toLocaleString()}</td>
                                                     <td className="px-4 py-4">
                                                         {isSoldOut ? (
                                                             <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-black uppercase tracking-wider">SOLD OUT</span>
@@ -3225,7 +3225,7 @@ const MyPage = ({ lang }) => {
                                                 <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{item.brand || '-'}</td>
                                                 {/* 원가 */}
                                                 <td className="px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap">
-                                                    {hasValidPrice ? `฿${originalPrice.toLocaleString()}` : '-'}
+                                                    {hasValidPrice ? `₩${originalPrice.toLocaleString()}` : '-'}
                                                 </td>
                                                 {/* 할인율 입력칸 */}
                                                 <td className="px-4 py-3">
@@ -3245,7 +3245,7 @@ const MyPage = ({ lang }) => {
                                                 <td className="px-4 py-3">
                                                     {hasValidPrice && currentRate > 0 ? (
                                                         <span className="text-sm font-black text-red-500">
-                                                            ฿{discountedPrice.toLocaleString()}
+                                                            ₩{discountedPrice.toLocaleString()}
                                                         </span>
                                                     ) : (
                                                         <span className="text-xs text-gray-300">-</span>
@@ -3344,21 +3344,21 @@ const MyPage = ({ lang }) => {
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
                             <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">{t('admin_sales_today')}</div>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-black text-gray-900">฿{salesStats.today.amount.toLocaleString()}</span>
+                                <span className="text-3xl font-black text-gray-900">₩{salesStats.today.amount.toLocaleString()}</span>
                             </div>
                             <div className="text-[11px] text-gray-400 mt-2 font-bold">{salesStats.today.count} {t('admin_sales_count')}</div>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
                             <div className="text-[10px] font-black text-purple-500 uppercase tracking-widest mb-1">{t('admin_sales_this_month')}</div>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-black text-gray-900">฿{salesStats.month.amount.toLocaleString()}</span>
+                                <span className="text-3xl font-black text-gray-900">₩{salesStats.month.amount.toLocaleString()}</span>
                             </div>
                             <div className="text-[11px] text-gray-400 mt-2 font-bold">{salesStats.month.count} {t('admin_sales_count')}</div>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between bg-gradient-to-br from-gray-900 to-gray-800">
                             <div className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-1">{t('admin_sales_total')}</div>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-black text-white">฿{salesStats.total.amount.toLocaleString()}</span>
+                                <span className="text-3xl font-black text-white">₩{salesStats.total.amount.toLocaleString()}</span>
                             </div>
                             <div className="text-[11px] text-gray-400 mt-2 font-bold">{salesStats.total.count} {t('admin_sales_count')}</div>
                         </div>
@@ -3378,7 +3378,7 @@ const MyPage = ({ lang }) => {
                                         <div className="font-bold text-gray-900">{m.month.split('-')[1]}월 매출</div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="font-black text-gray-900">฿{m.amount.toLocaleString()}</div>
+                                        <div className="font-black text-gray-900">₩{m.amount.toLocaleString()}</div>
                                         <div className="text-[10px] text-gray-400 font-bold">{m.count}건</div>
                                     </div>
                                 </div>
@@ -3411,7 +3411,7 @@ const MyPage = ({ lang }) => {
                                             <div className="flex items-center gap-6">
                                                 <div className="text-right">
                                                     <div className="text-xs font-black text-gray-500 uppercase leading-none mb-1">Total</div>
-                                                    <div className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors">฿{group.totalDay.toLocaleString()}</div>
+                                                    <div className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors">₩{group.totalDay.toLocaleString()}</div>
                                                 </div>
                                                 <svg className={`w-5 h-5 text-gray-300 transition-transform ${selectedSalesDate === group.date ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -3434,7 +3434,7 @@ const MyPage = ({ lang }) => {
                                                                 <span className="text-xs font-bold text-gray-800 font-mono tracking-tighter">{order.orderId}</span>
                                                                 {!order.isWeb && <span className="text-[8px] bg-orange-100 text-orange-600 px-1 py-0.5 rounded font-black uppercase">Direct</span>}
                                                             </div>
-                                                            <span className="text-xs font-black text-gray-900 font-mono">฿{order.amount.toLocaleString()}</span>
+                                                            <span className="text-xs font-black text-gray-900 font-mono">₩{order.amount.toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -3477,7 +3477,7 @@ const MyPage = ({ lang }) => {
                                         onChange={(e) => setCouponValue(e.target.value)}
                                         className="w-full px-4 py-2 pr-8 border border-gray-200 rounded-lg text-sm"
                                     />
-                                    <span className="absolute right-3 top-2.5 text-gray-400 text-sm">{couponType === 'amount' ? '฿' : '%'}</span>
+                                    <span className="absolute right-3 top-2.5 text-gray-400 text-sm">{couponType === 'amount' ? '₩' : '%'}</span>
                                 </div>
                             </div>
                             <div>
@@ -3538,7 +3538,7 @@ const MyPage = ({ lang }) => {
                                             <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
                                                 <td className="px-6 py-4 font-mono font-bold text-blue-600">{c.code}</td>
                                                 <td className="px-6 py-4">{c.type === 'amount' ? '정액할인' : '비율할인'}</td>
-                                                <td className="px-6 py-4 font-bold">{c.value}{c.type === 'amount' ? ' ฿' : '%'}</td>
+                                                <td className="px-6 py-4 font-bold">{c.value}{c.type === 'amount' ? ' ₩' : '%'}</td>
                                                 <td className="px-6 py-4">
                                                     {c.is_used ? (
                                                         <span className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs">사용완료</span>
@@ -3675,7 +3675,7 @@ const MyPage = ({ lang }) => {
                                             </div>
                                             <div>
                                                 <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">Batch Net Total</p>
-                                                <p className="text-lg font-black text-blue-600">฿{group.totalNet.toLocaleString()}</p>
+                                                <p className="text-lg font-black text-blue-600">₩{group.totalNet.toLocaleString()}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -3706,19 +3706,19 @@ const MyPage = ({ lang }) => {
                                                                 <div className="flex flex-col items-end gap-0.5">
                                                                     <div className="flex gap-2 items-center text-[10px]">
                                                                         <span className="text-gray-400 font-bold uppercase text-[8px]">Total</span>
-                                                                        <span className="font-mono font-bold text-gray-500">฿{Number(item.price || 0).toLocaleString()}</span>
+                                                                        <span className="font-mono font-bold text-gray-500">₩{Number(item.price || 0).toLocaleString()}</span>
                                                                     </div>
                                                                     <div className="flex gap-2 items-center text-[10px] text-red-400">
                                                                         <span className="font-bold uppercase text-[8px]">Comm ({item.commission_rate})</span>
-                                                                        <span className="font-mono font-bold">-฿{Number(item.commission_amount || 0).toLocaleString()}</span>
+                                                                        <span className="font-mono font-bold">-₩{Number(item.commission_amount || 0).toLocaleString()}</span>
                                                                     </div>
                                                                     <div className="flex gap-2 items-center text-blue-600 font-bold">
                                                                         <span className="uppercase text-[9px] font-black">Net</span>
-                                                                        <span className="font-mono font-black">฿{Number(item.net_amount || 0).toLocaleString()}</span>
+                                                                        <span className="font-mono font-black">₩{Number(item.net_amount || 0).toLocaleString()}</span>
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                <span className="font-mono font-black text-gray-900">฿{Number(item.price || 0).toLocaleString()}</span>
+                                                                <span className="font-mono font-black text-gray-900">₩{Number(item.price || 0).toLocaleString()}</span>
                                                             )}
                                                         </td>
                                                     </tr>
@@ -3729,11 +3729,11 @@ const MyPage = ({ lang }) => {
                                     <div className="bg-gray-50/30 px-6 py-3 border-t border-gray-100 flex justify-end gap-10">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[9px] text-gray-400 font-bold uppercase">Batch Total Amount:</span>
-                                            <span className="text-sm font-bold text-gray-500 font-mono">฿{group.totalAmount.toLocaleString()}</span>
+                                            <span className="text-sm font-bold text-gray-500 font-mono">₩{group.totalAmount.toLocaleString()}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[9px] text-gray-400 font-bold uppercase">Batch Total Commission:</span>
-                                            <span className="text-sm font-bold text-red-500 font-mono">฿{group.totalComm.toLocaleString()}</span>
+                                            <span className="text-sm font-bold text-red-500 font-mono">₩{group.totalComm.toLocaleString()}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -3772,7 +3772,7 @@ const MyPage = ({ lang }) => {
                                             </td>
                                             <td className="px-4 py-4 text-[10px] text-gray-500 font-mono whitespace-nowrap">{item.registered_at?.split(' ')[0]}</td>
                                             <td className="px-4 py-4 text-right">
-                                                <span className="font-mono font-black text-gray-900">฿{isNaN(Number(item.price)) ? (item.price || '-') : Number(item.price).toLocaleString()}</span>
+                                                <span className="font-mono font-black text-gray-900">₩{isNaN(Number(item.price)) ? (item.price || '-') : Number(item.price).toLocaleString()}</span>
                                             </td>
                                             <td className="px-4 py-4 text-center">
                                                 {item.status === 'sold' ? (
@@ -3894,7 +3894,7 @@ const MyPage = ({ lang }) => {
                                     <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500 border-b border-gray-100">
                                         <th className="px-4 py-3 font-black">상품사진</th>
                                         <th className="px-4 py-3 font-black">상품정보</th>
-                                        <th className="px-4 py-3 font-black text-right">가격수정 (฿)</th>
+                                        <th className="px-4 py-3 font-black text-right">가격수정 (₩)</th>
                                         <th className="px-4 py-3 font-black text-center">상태</th>
                                         <th className="px-4 py-3 font-black text-center">작업</th>
                                     </tr>
@@ -3965,7 +3965,7 @@ const MyPage = ({ lang }) => {
                                 <div className="text-left flex-1 pl-2 space-y-1">
                                     <h4 className="text-[11px] font-bold tracking-widest text-gray-500 leading-none uppercase">Gujero Gift Voucher</h4>
                                     <div className="text-[26px] font-black text-[#FE2C55] leading-none py-1 tracking-tight">
-                                        ส่วนลด {coupon.type === 'amount' ? `฿${coupon.value}` : `${coupon.value}%`}
+                                        ส่วนลด {coupon.type === 'amount' ? `₩${coupon.value}` : `${coupon.value}%`}
                                     </div>
                                     <div className="text-[13px] font-black text-black leading-none">
                                         🌐 www.gujero.com

@@ -468,7 +468,7 @@ const CatalogPage = ({ lang }) => {
 
                                 {/* 사이즈(가슴단면) 필터 */}
                                 <div className="flex flex-1 items-center gap-2">
-                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider shrink-0 w-16">SIZE (inch)</span>
+                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider shrink-0 w-16">SIZE (cm)</span>
                                     <div className="flex items-center gap-1 flex-1">
                                         <input 
                                             type="number" 

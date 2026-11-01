@@ -103,7 +103,7 @@ const CartPage = ({ lang }) => {
                                                 {lang === 'KR' ? '가격 책정 전' : 'TBD'}
                                             </p>
                                         ) : (
-                                            <p className="text-sm font-bold">฿{unitPrice.toLocaleString()}</p>
+                                            <p className="text-sm font-bold">₩{unitPrice.toLocaleString()}</p>
                                         )}
                                     </div>
 
@@ -137,7 +137,7 @@ const CartPage = ({ lang }) => {
                                 </h4>
                                 <p className="text-xs text-blue-700 leading-relaxed">
                                     {lang === 'KR' 
-                                        ? '도착하지 않은 예약 상품은 합계 금액(฿0)에서 임시 제외되었습니다. 관리자가 구매예약을 확인하고 최종 가격을 책정하면 마이페이지에서 상세 가격 확인이 가능하며, 상품 상태도 예약중 상품으로 변경됩니다.'
+                                        ? '도착하지 않은 예약 상품은 합계 금액(₩0)에서 임시 제외되었습니다. 관리자가 구매예약을 확인하고 최종 가격을 책정하면 마이페이지에서 상세 가격 확인이 가능하며, 상품 상태도 예약중 상품으로 변경됩니다.'
                                         : 'Preorder items are excluded from the current total. The admin will review and finalize the price, which will update your order and mark the product as reserved.'}
                                 </p>
                             </div>
@@ -148,7 +148,7 @@ const CartPage = ({ lang }) => {
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                         <div className="flex justify-between items-center text-lg font-bold mb-6">
                             <span>{t('cart_total')}</span>
-                            <span>฿{cartTotal.toLocaleString()}</span>
+                            <span>₩{cartTotal.toLocaleString()}</span>
                         </div>
                         <button
                             onClick={handleCheckout}
