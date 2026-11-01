@@ -20,6 +20,8 @@ const DetailPage = ({ lang }) => {
     const [activeImgIdx, setActiveImgIdx] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
+    const [kakaoInquiryModal, setKakaoInquiryModal] = useState(null);
+    const [inquiryCopiedToast, setInquiryCopiedToast] = useState(false);
     const carouselRef = useRef(null);
 
     // 뷰포트 맨 위로
@@ -215,42 +217,85 @@ const DetailPage = ({ lang }) => {
         : rawPrice;
     const displayPrice = !isNaN(rawPrice) ? specialDiscountedPrice.toLocaleString() : price;
 
-    const handleInquiry = async () => {
-        let msgTemplate = getTranslation(tLang, 'line_inquiry_msg');
-        if (!msgTemplate || msgTemplate === 'line_inquiry_msg') {
-            msgTemplate = tLang === 'KR'
-                ? '[{brand}] {name} (코드: {code})\n가격: ₩{price}\n링크: {link}\n\n안녕하세요, 구매 문의드립니다!'
-                : tLang === 'TH'
-                ? '[{brand}] {name} (รหัส: {code})\nราคา: ₩{price}\nลิงก์: {link}\n\nสวัสดีครับ/ค่ะ สนใจสั่งซื้อสินค้าครับ/ค่ะ!'
-                : '[{brand}] {name} (Code: {code})\nPrice: ₩{price}\nLink: {link}\n\nHello, I would like to inquire about this item!';
+    const normalizeKakaoUrl = (rawUrl) => {
+        const trimmed = String(rawUrl || '').trim();
+        if (!trimmed) return '';
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        return `https://${trimmed}`;
+    };
+
+    const buildInquiryMessage = () => {
+        const productUrl = window.location.href;
+        const cleanCode = code.startsWith('TEMP_') ? '도착예정' : code;
+        const storeLabel = product.vendor_store_name || product.vendor_code || '판매자';
+        if (tLang === 'EN') {
+            return [
+                `📦 [GUJERO Product Inquiry]`,
+                `• Store: ${storeLabel}`,
+                `• Item: [${brand}] ${displayName}`,
+                size ? `• Size: ${size}` : null,
+                `• Code: ${cleanCode}`,
+                `• Price: ${curr}${displayPrice}`,
+                `• Product Link: ${productUrl}`,
+                ``,
+                `Hello! I saw this item on GUJERO and would like to inquire about it :)`
+            ].filter(v => v !== null).join('\n');
         }
-        
-        const textToCopy = msgTemplate
-            .replace('{brand}', brand)
-            .replace('{name}', displayName)
-            .replace('{code}', code)
-            .replace('{price}', displayPrice)
-            .replace('{link}', window.location.href);
+        return [
+            `📦 [구제로(GUJERO) 상품 문의]`,
+            `• 상품명: [${brand}] ${displayName}`,
+            size ? `• 사이즈: ${size}` : null,
+            `• 상품코드: ${cleanCode}`,
+            `• 판매가격: ${curr}${displayPrice}`,
+            `• 문의 상품 링크: ${productUrl}`,
+            ``,
+            `안녕하세요 사장님! 위 상품 링크 보고 문의드립니다 :)`
+        ].filter(v => v !== null).join('\n');
+    };
 
-        const alertMsg = tLang === 'KR'
-            ? '상품 정보가 복사되었습니다!\n채팅창이 열리면 붙여넣기 해주세요.'
-            : tLang === 'TH'
-            ? 'คัดลอกข้อมูลสินค้าแล้ว!\nกรุณา "วาง (Paste)" ในหน้าต่างแชท'
-            : 'Product details copied to clipboard!\nPlease "Paste" it into the chat box.';
-
+    const copyTextSafe = async (text) => {
         try {
-            await navigator.clipboard.writeText(textToCopy);
-            alert(alertMsg);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
         } catch (err) {
-            console.error("클립보드 복사 실패:", err);
+            console.warn('Clipboard API 실패, fallback 시도:', err);
         }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    };
 
-        if (product.vendor_kakao_url) {
-            window.open(product.vendor_kakao_url, "_blank");
-        } else {
-            const msgUrlEncoded = encodeURIComponent(textToCopy);
-            const lineUrl = `https://line.me/R/oaMessage/@102ipvys/?${msgUrlEncoded}`;
-            window.open(lineUrl, "_blank");
+    const handleInquiry = async () => {
+        const textToCopy = buildInquiryMessage();
+        const kakaoUrl = normalizeKakaoUrl(product.vendor_kakao_url);
+
+        await copyTextSafe(textToCopy);
+        setInquiryCopiedToast(true);
+        setTimeout(() => setInquiryCopiedToast(false), 3000);
+
+        // 자동완성된 문의 메시지 확인 + 사장님 카카오톡 연결 모달 표시
+        setKakaoInquiryModal({
+            text: textToCopy,
+            kakaoUrl,
+            storeName: product.vendor_store_name || product.vendor_code || '입점 사장님',
+        });
+
+        // 사장님 카카오톡 주소가 등록되어 있으면 즉시 새 창으로도 연결
+        if (kakaoUrl) {
+            window.open(kakaoUrl, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -615,21 +660,19 @@ const DetailPage = ({ lang }) => {
                             </button>
                         )}
 
-                        {/* 3. 문의 버튼 (flex-1 동일 사이즈) */}
+                        {/* 3. 카카오톡 문의 버튼 (업로드한 각 사장님의 카카오톡으로 연결 + 상품 링크/정보 자동완성) */}
                         {!isSoldOut && (
                             <button 
                                 onClick={handleInquiry}
-                                className={`flex-1 h-full ${product.vendor_kakao_url ? 'bg-[#FEE500] hover:bg-[#F4DC00] text-[#371D1E]' : 'bg-[#00B900] hover:bg-[#009900] text-white'} font-black rounded-lg transition-all flex items-center justify-center gap-1 text-[10px] md:text-[12px] shadow-sm px-1`}
+                                className="flex-1 h-full bg-[#FEE500] hover:bg-[#F4DC00] text-[#371D1E] font-black rounded-lg transition-all flex items-center justify-center gap-1.5 text-[11px] md:text-[13px] shadow-sm px-2 border border-[#E5CE00]"
                             >
-                                {product.vendor_kakao_url ? (
-                                    <span className="text-sm font-black mr-0.5">K</span>
-                                ) : (
-                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 md:w-4 md:h-4 flex-none"><path d="M22.067 11.218c0-4.965-4.953-8.995-11.033-8.995C4.954 2.223 0 6.253 0 11.218c0 4.453 3.966 8.196 9.309 8.877.36.077.854.238.975.547.11.28.07.643.033.899 0 0-.131.792-.158.95-.045.26-.208 1.054.92.578 1.129-.475 6.09-3.585 8.163-6.027 1.88-2.22 2.825-4.524 2.825-5.824z"/></svg>
-                                )}
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-4.5 md:h-4.5 flex-none">
+                                    <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
+                                </svg>
                                 <span className="hidden sm:inline whitespace-nowrap">
-                                    {product.vendor_kakao_url ? (tLang === 'KR' ? '카카오 문의' : 'Kakao Inquiry') : (tLang === 'KR' ? 'LINE 문의' : tLang === 'TH' ? 'สอบถาม LINE' : 'LINE Inquiry')}
+                                    {tLang === 'KR' ? '카카오톡 문의' : 'KakaoTalk Inquiry'}
                                 </span>
-                                <span className="inline sm:hidden whitespace-nowrap">{product.vendor_kakao_url ? '카카오' : 'LINE'}</span>
+                                <span className="inline sm:hidden whitespace-nowrap">카카오톡 문의</span>
                             </button>
                         )}
                     </div>
@@ -738,6 +781,94 @@ const DetailPage = ({ lang }) => {
                     {/* 이미지 정보 / 하단 인디케이터 */}
                     <div className="mt-8 text-white/50 text-sm font-bold tracking-widest uppercase">
                         {lightboxImgIdx + 1} / {imageList.length}
+                    </div>
+                </div>
+            )}
+
+            {/* ─── 카카오톡 상품 문의 자동완성 & 연결 모달 ─── */}
+            {kakaoInquiryModal && (
+                <div
+                    className="fixed inset-0 z-[20000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+                    onClick={() => setKakaoInquiryModal(null)}
+                >
+                    <div
+                        className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-100"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="bg-[#FEE500] px-5 py-4 flex items-center justify-between text-[#371D1E]">
+                            <div className="flex items-center gap-2 font-black text-base">
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
+                                </svg>
+                                <span>사장님 카카오톡 상품 문의 연결</span>
+                            </div>
+                            <button
+                                onClick={() => setKakaoInquiryModal(null)}
+                                className="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center font-bold text-sm"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-emerald-900 text-xs font-bold leading-relaxed flex items-start gap-2">
+                                <span className="text-base leading-none">✅</span>
+                                <div>
+                                    어떤 상품에서 문의하셨는지 사장님이 바로 알아보실 수 있도록 <b>아래 상품 정보와 링크가 클립보드에 자동 완성(복사)</b>되었습니다!<br />
+                                    열린 카카오톡 채팅방 입력창에 <b>붙여넣기(Ctrl+V 또는 길게 눌러 붙여넣기)</b> 후 전송해 주세요.
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-xs font-black text-gray-700">📋 자동 완성된 문의 메시지 (복사 완료)</span>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            await copyTextSafe(kakaoInquiryModal.text);
+                                            setInquiryCopiedToast(true);
+                                            setTimeout(() => setInquiryCopiedToast(false), 2500);
+                                        }}
+                                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
+                                    >
+                                        {inquiryCopiedToast ? '✓ 복사됨!' : '다시 복사'}
+                                    </button>
+                                </div>
+                                <pre className="w-full p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 whitespace-pre-wrap break-all font-sans leading-relaxed max-h-48 overflow-y-auto">
+                                    {kakaoInquiryModal.text}
+                                </pre>
+                            </div>
+
+                            {kakaoInquiryModal.kakaoUrl ? (
+                                <a
+                                    href={kakaoInquiryModal.kakaoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={async () => {
+                                        await copyTextSafe(kakaoInquiryModal.text);
+                                    }}
+                                    className="w-full py-3.5 px-4 bg-[#FEE500] hover:bg-[#F4DC00] text-[#371D1E] font-black rounded-2xl shadow-sm flex items-center justify-center gap-2 text-sm transition-all border border-[#E5CE00]"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                        <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
+                                    </svg>
+                                    <span>{kakaoInquiryModal.storeName} 카카오톡 채팅방 열기</span>
+                                </a>
+                            ) : (
+                                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold leading-relaxed text-center">
+                                    ⚠️ 이 상품을 업로드한 사장님의 카카오톡 상담 주소가 아직 설정되지 않았습니다.<br />
+                                    (사장님께서 [마이페이지 → 매장 프로필 관리] 또는 [밴드어드민 → 오픈마켓 설정]에서 카카오톡 주소를 입력하시면 즉시 연결됩니다.)
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => setKakaoInquiryModal(null)}
+                                className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

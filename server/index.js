@@ -1039,18 +1039,22 @@ db.serialize(() => {
                         if (err) console.error('[DB] iconic_looks 테이블 생성 에러:', err.message);
                         db.run("ALTER TABLE iconic_looks ADD COLUMN tags TEXT", (err) => {});
                         db.run("ALTER TABLE vendor_profiles ADD COLUMN store_name TEXT DEFAULT ''", (err) => {});
+                        db.run("ALTER TABLE vendor_profiles ADD COLUMN kakao_url TEXT DEFAULT ''", (err) => {});
                         
                         db.run(`
                             CREATE TABLE IF NOT EXISTS vendor_profiles (
                                 vendor_code TEXT PRIMARY KEY,
+                                store_name TEXT DEFAULT '',
                                 description TEXT,
                                 rules TEXT,
                                 logo_url TEXT,
+                                kakao_url TEXT DEFAULT '',
                                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
                             )
                         `, (err) => {
                             if (err) console.error('[DB] vendor_profiles 에러:', err.message);
+                            db.run("ALTER TABLE vendor_profiles ADD COLUMN kakao_url TEXT DEFAULT ''", () => {});
                         });
                     });
 
@@ -1764,7 +1768,7 @@ app.get('/api/debug-sync-log', (req, res) => {
 app.get('/api/vendors', async (req, res) => {
     try {
         const query = `
-            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt, vp.store_name, vp.logo_url, vp.description, vp.rules
+            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt, vp.store_name, vp.logo_url, vp.description, vp.rules, vp.kakao_url
             FROM (
                 SELECT vendor_code FROM vendor_profiles
                 UNION
@@ -1876,19 +1880,21 @@ setTimeout(() => {
 app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
     const requestedCode = req.params.vendor_code;
     let vendor_code = requestedCode;
-    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [vendor_code], (err, cust) => {
+    db.get('SELECT bandadmin_id, kakao_url FROM customers WHERE LOWER(login_id) = LOWER(?) OR LOWER(bandadmin_id) = LOWER(?)', [vendor_code, vendor_code], (err, cust) => {
         if (!err && cust && cust.bandadmin_id && cust.bandadmin_id !== '-') {
             vendor_code = cust.bandadmin_id;
         }
+        const fallbackKakao = cust?.kakao_url || '';
         db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
             if (row || vendor_code === requestedCode) {
-                return res.json(row || { vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
+                const base = row || { vendor_code, store_name: '', description: '', rules: '', logo_url: '', kakao_url: '' };
+                return res.json({ ...base, kakao_url: base.kakao_url || fallbackKakao });
             }
             // 안전장치: 아직 이동되지 않은(연결 전에 저장된) 카카오ID 키 프로필을 한 번 더 찾아본다
             db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [requestedCode], (err2, oldRow) => {
-                if (!err2 && oldRow) return res.json({ ...oldRow, vendor_code });
-                res.json({ vendor_code, store_name: '', description: '', rules: '', logo_url: '' });
+                if (!err2 && oldRow) return res.json({ ...oldRow, vendor_code, kakao_url: oldRow.kakao_url || fallbackKakao });
+                res.json({ vendor_code, store_name: '', description: '', rules: '', logo_url: '', kakao_url: fallbackKakao });
             });
         });
     });
@@ -1897,23 +1903,39 @@ app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
 // PUT /api/vendor-profiles/:vendor_code
 app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
     let { vendor_code } = req.params;
-    const { store_name, description, rules, logo_url } = req.body;
-    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [vendor_code], (err, cust) => {
+    const { store_name, description, rules, logo_url, kakao_url } = req.body;
+    db.get('SELECT bandadmin_id, kakao_url as cust_kakao_url FROM customers WHERE LOWER(login_id) = LOWER(?) OR LOWER(bandadmin_id) = LOWER(?)', [vendor_code, vendor_code], (err, cust) => {
         if (!err && cust && cust.bandadmin_id && cust.bandadmin_id !== '-') {
             vendor_code = cust.bandadmin_id;
         }
-        db.run(`
-            INSERT INTO vendor_profiles (vendor_code, store_name, description, rules, logo_url, updated_at) 
-            VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
-            ON CONFLICT(vendor_code) DO UPDATE SET 
-                store_name = excluded.store_name,
-                description = excluded.description,
-                rules = excluded.rules,
-                logo_url = excluded.logo_url,
-                updated_at = datetime('now', 'localtime')
-        `, [vendor_code, store_name || '', description || '', rules || '', logo_url || ''], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, vendor_code });
+        db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err2, existing) => {
+            const nextStoreName = store_name !== undefined ? store_name : (existing?.store_name || '');
+            const nextDesc = description !== undefined ? description : (existing?.description || '');
+            const nextRules = rules !== undefined ? rules : (existing?.rules || '');
+            const nextLogo = logo_url !== undefined ? logo_url : (existing?.logo_url || '');
+            const nextKakao = kakao_url !== undefined ? String(kakao_url || '').trim() : (existing?.kakao_url || cust?.cust_kakao_url || '');
+
+            db.run(`
+                INSERT INTO vendor_profiles (vendor_code, store_name, description, rules, logo_url, kakao_url, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+                ON CONFLICT(vendor_code) DO UPDATE SET 
+                    store_name = excluded.store_name,
+                    description = excluded.description,
+                    rules = excluded.rules,
+                    logo_url = excluded.logo_url,
+                    kakao_url = excluded.kakao_url,
+                    updated_at = datetime('now', 'localtime')
+            `, [vendor_code, nextStoreName, nextDesc, nextRules, nextLogo, nextKakao], function(err3) {
+                if (err3) return res.status(500).json({ error: err3.message });
+                if (kakao_url !== undefined) {
+                    db.run(
+                        'UPDATE customers SET kakao_url = ? WHERE LOWER(login_id) = LOWER(?) OR LOWER(bandadmin_id) = LOWER(?)',
+                        [nextKakao, vendor_code, vendor_code],
+                        () => {}
+                    );
+                }
+                res.json({ success: true, vendor_code, kakao_url: nextKakao });
+            });
         });
     });
 });
@@ -2214,9 +2236,20 @@ const buildProductImagesFromDb = (row) => {
 app.get('/api/products/:code', (req, res) => {
     const { code } = req.params;
     db.get(`
-        SELECT p.*, IFNULL(d.discount_rate, 0) as discount_rate, c.kakao_url as vendor_kakao_url
+        SELECT p.*,
+               IFNULL(d.discount_rate, 0) as discount_rate,
+               vp.store_name as vendor_store_name,
+               COALESCE(
+                   NULLIF(TRIM(vp.kakao_url), ''),
+                   NULLIF(TRIM(c.kakao_url), ''),
+                   (SELECT NULLIF(TRIM(vp2.kakao_url), '') FROM vendor_profiles vp2 WHERE LOWER(vp2.vendor_code) = LOWER(p.vendor_code) LIMIT 1),
+                   (SELECT NULLIF(TRIM(c2.kakao_url), '') FROM customers c2 WHERE LOWER(c2.login_id) = LOWER(p.vendor_code) OR LOWER(c2.bandadmin_id) = LOWER(p.vendor_code) LIMIT 1),
+                   (SELECT NULLIF(TRIM(vp3.kakao_url), '') FROM vendor_profiles vp3 WHERE p.code LIKE (vp3.vendor_code || '-%') AND NULLIF(TRIM(vp3.kakao_url), '') IS NOT NULL LIMIT 1),
+                   (SELECT NULLIF(TRIM(c3.kakao_url), '') FROM customers c3 WHERE (p.code LIKE (c3.bandadmin_id || '-%') OR p.code LIKE (c3.login_id || '-%')) AND NULLIF(TRIM(c3.kakao_url), '') IS NOT NULL LIMIT 1)
+               ) as vendor_kakao_url
         FROM products p
         LEFT JOIN discount_products d ON p.code = d.product_code
+        LEFT JOIN vendor_profiles vp ON p.vendor_code = vp.vendor_code
         LEFT JOIN customers c ON p.vendor_code = c.bandadmin_id
         WHERE p.code = ?
     `, [code], (err, row) => {
@@ -3352,6 +3385,24 @@ app.put('/api/profile/:customerId', async (req, res) => {
                 }
             );
         });
+
+        // 1-2) 입점 사장님이 내 정보 수정에서 kakao_url을 변경한 경우 vendor_profiles에도 동기화
+        if (kakao_url !== undefined) {
+            db.get('SELECT login_id, bandadmin_id FROM customers WHERE id = ?', [customerId], (err, custRow) => {
+                if (!err && custRow) {
+                    const targetVendorCode = (custRow.bandadmin_id && custRow.bandadmin_id !== '-') ? custRow.bandadmin_id : custRow.login_id;
+                    if (targetVendorCode) {
+                        db.run(
+                            `INSERT INTO vendor_profiles (vendor_code, kakao_url, updated_at)
+                             VALUES (?, ?, datetime('now', 'localtime'))
+                             ON CONFLICT(vendor_code) DO UPDATE SET kakao_url = excluded.kakao_url, updated_at = datetime('now', 'localtime')`,
+                            [targetVendorCode, String(kakao_url || '').trim()],
+                            () => {}
+                        );
+                    }
+                }
+            });
+        }
 
         // 2) 구글 시트 '고객정보' 탭 동기화 (비동기, 실패해도 로컬은 이미 수정됨)
         try {

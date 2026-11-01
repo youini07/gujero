@@ -1367,7 +1367,7 @@ const MyPage = ({ lang }) => {
     }, [activeTab, user]);
 
     // --- Vendor Profile State ---
-    const [vendorProfile, setVendorProfile] = useState({ store_name: '', description: '', rules: '', logo_url: '' });
+    const [vendorProfile, setVendorProfile] = useState({ store_name: '', description: '', rules: '', logo_url: '', kakao_url: '' });
     const [vendorProfileLoading, setVendorProfileLoading] = useState(false);
     const [vendorLogoFile, setVendorLogoFile] = useState(null);
 
@@ -1378,9 +1378,10 @@ const MyPage = ({ lang }) => {
             const data = await res.json();
             setVendorProfile({
                 store_name: data.store_name || '',
-                    description: data.description || '',
+                description: data.description || '',
                 rules: data.rules || '',
-                logo_url: data.logo_url || ''
+                logo_url: data.logo_url || '',
+                kakao_url: data.kakao_url || formData.kakao_url || ''
             });
         } catch (err) {
             console.error('Failed to load vendor profile:', err);
@@ -1412,13 +1413,15 @@ const MyPage = ({ lang }) => {
                     store_name: vendorProfile.store_name,
                     description: vendorProfile.description,
                     rules: vendorProfile.rules,
-                    logo_url: finalLogoUrl
+                    logo_url: finalLogoUrl,
+                    kakao_url: (vendorProfile.kakao_url || '').trim()
                 })
             });
             
             if (!res2.ok) throw new Error('서버 응답 오류 (상태코드: ' + res2.status + ')');
             
-            alert('매장 프로필이 성공적으로 저장되었습니다!');
+            setFormData(prev => ({ ...prev, kakao_url: (vendorProfile.kakao_url || '').trim() }));
+            alert('매장 프로필 및 카카오톡 문의 연결 주소가 성공적으로 저장되었습니다!');
             setVendorLogoFile(null);
             loadVendorProfile();
         } catch (err) {
@@ -1906,11 +1909,11 @@ const MyPage = ({ lang }) => {
                         />
                     </div>
 
-                    {user?.role === 'admin' && (
+                    {isVendor && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                                <span className="text-[#FEE500] text-sm bg-black rounded-full w-5 h-5 flex items-center justify-center font-black">K</span>
-                                카카오톡 오픈채팅 주소 (선택)
+                                <span className="text-[#371D1E] text-xs bg-[#FEE500] rounded-full w-5 h-5 flex items-center justify-center font-black">K</span>
+                                카카오톡 오픈채팅 / 상담 주소 (상품 문의 연결용)
                             </label>
                             <input
                                 type="text"
@@ -1919,7 +1922,7 @@ const MyPage = ({ lang }) => {
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#FEE500]"
                                 placeholder="https://open.kakao.com/o/..."
                             />
-                            <p className="mt-1 text-[12px] text-gray-500">본인이 업로드한 상품에 고객 문의 시 연결될 오픈채팅 주소입니다.</p>
+                            <p className="mt-1 text-[12px] text-gray-500">본인이 업로드한 상품 상세페이지에서 고객이 [카카오톡 문의] 클릭 시 자동 연결될 본인 카카오톡 채팅 주소입니다.</p>
                         </div>
                     )}
 
@@ -3870,6 +3873,22 @@ const MyPage = ({ lang }) => {
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm mb-4"
                                         placeholder="예: 드림스튜디오 빈티지"
                                     />
+                                </div>
+                                <div className="p-4 rounded-2xl bg-[#FEE500]/15 border border-[#FEE500]">
+                                    <label className="block text-sm font-black text-gray-900 mb-2 flex items-center gap-2">
+                                        <span className="w-6 h-6 rounded-full bg-[#FEE500] text-[#371D1E] text-xs font-black flex items-center justify-center shadow-xs">K</span>
+                                        카카오톡 오픈채팅 / 상담 주소 (상품 상세 문의 연결)
+                                    </label>
+                                    <input 
+                                        type="text"
+                                        value={vendorProfile.kakao_url || ''}
+                                        onChange={e => setVendorProfile({ ...vendorProfile, kakao_url: e.target.value })}
+                                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-medium"
+                                        placeholder="예: https://open.kakao.com/o/sXXXXXXX"
+                                    />
+                                    <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+                                        💡 고객이 사장님의 상품 상세페이지에서 <b>[카카오톡 문의]</b> 버튼을 누르면 이 주소의 카카오톡 방으로 즉시 연결되며, <b>어떤 상품 링크에서 문의했는지(상품명·코드·가격·상품링크)</b>가 자동으로 완성되어 복사됩니다.
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-900 mb-2">매장 소개</label>
