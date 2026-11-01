@@ -213,20 +213,36 @@ async function syncStockToGoogleSheets(productCodes, status = 'Sold Out', priceM
         const auth = await getGoogleSheetsWriteAuth();
         const sheets = google.sheets({ version: 'v4', auth });
         
-        // 1. '사입품목' 및 '상품목록' 두 시트에서 병렬로 데이터를 긁어옴
-        const [resPurchases, resProducts] = await Promise.all([
-            sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '사입품목!A:AF' }),
+        // 1. '홈페이지', '사입품목', '상품목록' 시트에서 병렬로 데이터를 긁어옴
+        const [resHomepage, resPurchases, resProducts] = await Promise.all([
+            sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '홈페이지!A:J' }).catch(() => ({ data: { values: [] } })),
+            sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '사입품목!A:AF' }).catch(() => ({ data: { values: [] } })),
             sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: '상품목록!A:AF' }).catch(err => {
                 console.log("[Inventory] '상품목록' 시트가 존재하지 않아 조회를 스킵합니다.");
                 return { data: { values: [] } };
             })
         ]);
         
+        const homepageRows = resHomepage.data.values || [];
         const purchaseRows = resPurchases.data.values || [];
         const productRows = resProducts.data.values || [];
         
         const updates = [];
         const cleanCodes = productCodes.map(c => String(c).replace('.0', '').trim());
+
+        // 0. 홈페이지 시트 업데이트 대상 스캔 (현재 메인 동기화 시트)
+        if (homepageRows.length > 1) {
+            for (let i = 1; i < homepageRows.length; i++) {
+                const pCode = String(homepageRows[i][0] || '').replace('.0', '').trim();
+                if (cleanCodes.includes(pCode)) {
+                    const sheetStock = (status === 'On Sale' || status === 'onsale' || status === '') ? 'onsale' : status;
+                    updates.push({
+                        range: `홈페이지!F${i + 1}`,
+                        values: [[sheetStock]]
+                    });
+                }
+            }
+        }
 
         // A. 사입품목 시트 업데이트 대상 스캔
         if (purchaseRows.length > 1) {
@@ -1543,7 +1559,10 @@ const syncData = async () => {
                     const updated_at = getCell(2);
                     const stock = getCell(5);
                     const original_price = getCell(7);
-                    const price = getCell(8) || getCell(9) || getCell(7); // 시작가 -> 판매가 -> 출고가 순으로 씀
+                    // 왜 J열(9, 판매가)을 I열(8, 시작가)보다 우선하는가:
+                    // 밴드어드민에서 가격을 수정하면 J열(판매가/낙찰가)이 갱신되므로, I열(초기 시작가)이 남아있더라도
+                    // 수정된 최신 판매가(J열)가 홈페이지에 반영되어야 하기 때문입니다.
+                    const price = getCell(9) || getCell(8) || getCell(7);
                     
                     const brand = getCell(10);
                     const category = getCell(12);
@@ -5501,25 +5520,122 @@ app.get('/api/vendor/products/:loginId', (req, res) => {
     });
 });
 
+// 구글 시트 '홈페이지' 탭의 개별 상품(가격, 출고가, 재고상태) 실시간 업데이트 헬퍼
+// 왜 필요한가: SQLite만 수정하면 10분 주기 AutoSync(syncData) 시 구글 시트 원본 데이터로 덮어써져
+// 수정한 가격/출고가/판매완료 상태가 초기화되므로 반드시 구글 시트 원본도 함께 갱신합니다.
+async function syncVendorProductToHomepageSheet(targetCode, { price, original_price, stock }) {
+    if (!targetCode || !SPREADSHEET_ID) return;
+    try {
+        const auth = await getGoogleSheetsWriteAuth();
+        const sheets = google.sheets({ version: 'v4', auth });
+        const res = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: '홈페이지!A:J'
+        });
+        const rows = res.data.values || [];
+        if (rows.length <= 1) return;
+
+        const cleanTarget = String(targetCode).trim();
+        const updates = [];
+
+        for (let i = 1; i < rows.length; i++) {
+            const rowCode = String(rows[i][0] || '').trim();
+            if (rowCode === cleanTarget) {
+                const rowNum = i + 1;
+                if (stock !== undefined) {
+                    updates.push({ range: `홈페이지!F${rowNum}`, values: [[String(stock)]] });
+                }
+                if (original_price !== undefined) {
+                    updates.push({ range: `홈페이지!H${rowNum}`, values: [[String(original_price ?? '')]] });
+                }
+                if (price !== undefined) {
+                    updates.push({ range: `홈페이지!I${rowNum}`, values: [[String(price)]] });
+                    updates.push({ range: `홈페이지!J${rowNum}`, values: [[String(price)]] });
+                }
+                break;
+            }
+        }
+
+        if (updates.length > 0) {
+            await sheets.spreadsheets.values.batchUpdate({
+                spreadsheetId: SPREADSHEET_ID,
+                requestBody: {
+                    valueInputOption: 'USER_ENTERED',
+                    data: updates
+                }
+            });
+            console.log(`[VendorSync] Updated Google Sheet '홈페이지' for ${cleanTarget} (${updates.length} cells)`);
+        }
+    } catch (err) {
+        console.error(`[VendorSync] Failed to update Google Sheet for ${targetCode}:`, err.message);
+    }
+}
+
 app.put('/api/vendor/products/:code', (req, res) => {
     const { code } = req.params;
-    const { loginId, price, stock } = req.body;
+    const { loginId, vendorCode, price, original_price, stock } = req.body;
+    const effectiveLoginId = loginId || vendorCode;
 
-    if (!loginId) return res.status(403).json({ error: 'UNAUTHORIZED', message: '권한이 없습니다.' });
+    if (!effectiveLoginId) return res.status(403).json({ error: 'UNAUTHORIZED', message: '권한이 없습니다.' });
 
-    db.get('SELECT bandadmin_id FROM customers WHERE login_id = ?', [loginId], (err, customer) => {
+    const normalizeStockValue = (rawStock) => {
+        if (rawStock === undefined || rawStock === null) return undefined;
+        const s = String(rawStock).trim().toLowerCase();
+        if (s === '0' || s.includes('sold') || s.includes('out') || s.includes('품절') || s.includes('판매완료')) {
+            return 'Sold Out';
+        }
+        if (s === 'reserved') return 'reserved';
+        return 'onsale';
+    };
+
+    db.get('SELECT bandadmin_id, role FROM customers WHERE login_id = ?', [effectiveLoginId], (err, customer) => {
         if (err) return res.status(500).json({ error: err.message });
-        const bandadminId = (customer && customer.bandadmin_id) ? customer.bandadmin_id : loginId;
+        const bandadminId = (customer && customer.bandadmin_id) ? customer.bandadmin_id : effectiveLoginId;
+        const isSuperAdmin = ['youini07', 'dreamstudio', 'kakao_5126425441'].includes(String(effectiveLoginId).toLowerCase()) ||
+                             ['youini07', 'dreamstudio'].includes(String(bandadminId).toLowerCase()) ||
+                             (customer && customer.role === 'admin');
 
-        db.get('SELECT vendor_code FROM products WHERE code = ?', [code], (err, row) => {
+        const prefixedCode = String(code).startsWith(`${bandadminId}-`) ? String(code) : `${bandadminId}-${code}`;
+
+        db.get('SELECT * FROM products WHERE code = ? OR code = ?', [code, prefixedCode], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
             if (!row) return res.status(404).json({ error: 'NOT_FOUND', message: '상품을 찾을 수 없습니다.' });
-            if (row.vendor_code !== bandadminId) return res.status(403).json({ error: 'FORBIDDEN', message: '본인의 상품만 수정할 수 있습니다.' });
+            const ownsProduct = isSuperAdmin ||
+                                row.vendor_code === bandadminId ||
+                                row.vendor_code === effectiveLoginId ||
+                                String(row.code).startsWith(`${bandadminId}-`) ||
+                                String(row.code).startsWith(`${effectiveLoginId}-`);
+            if (!ownsProduct) return res.status(403).json({ error: 'FORBIDDEN', message: '본인의 상품만 수정할 수 있습니다.' });
 
-            db.run('UPDATE products SET price = ?, stock = ? WHERE code = ?', [price, stock, code], function(err2) {
-                if (err2) return res.status(500).json({ error: err2.message });
-                res.json({ success: true });
-            });
+            const nextPrice = price !== undefined ? String(price).replace(/[^0-9]/g, '') : row.price;
+            const nextOriginalPrice = original_price !== undefined ? String(original_price ?? '').replace(/[^0-9]/g, '') : row.original_price;
+            const normalizedStock = normalizeStockValue(stock);
+            const nextStock = normalizedStock !== undefined ? normalizedStock : row.stock;
+
+            db.run(
+                'UPDATE products SET price = ?, original_price = ?, stock = ? WHERE code = ?',
+                [nextPrice, nextOriginalPrice, nextStock, row.code],
+                async function(err2) {
+                    if (err2) return res.status(500).json({ error: err2.message });
+
+                    await syncVendorProductToHomepageSheet(row.code, {
+                        price: price !== undefined ? nextPrice : undefined,
+                        original_price: original_price !== undefined ? nextOriginalPrice : undefined,
+                        stock: normalizedStock
+                    });
+                    refreshBrandCache().catch(() => {});
+
+                    res.json({
+                        success: true,
+                        product: {
+                            code: row.code,
+                            price: nextPrice,
+                            original_price: nextOriginalPrice,
+                            stock: nextStock
+                        }
+                    });
+                }
+            );
         });
     });
 });

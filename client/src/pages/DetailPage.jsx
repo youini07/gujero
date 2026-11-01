@@ -85,14 +85,15 @@ const DetailPage = ({ lang }) => {
 
     const { brand, name, price, original_price, size, category, description, image_url, stock, discount_rate, product_images, name_en, name_th, description_en, description_th, sku, nukki_url } = product;
     const displayName = lang === 'EN' && name_en ? name_en : lang === 'TH' && name_th ? name_th : name;
-    const isSoldOut = ['sold', 'out'].some(kw => String(stock || '').toLowerCase().includes(kw));
-    const isReserved = String(stock || '').toLowerCase() === 'reserved';
-    // 'onsale', 'sold out'이 아닌 상태이고, reserved도 아니면 예약 가능 대상
+    const normalizedStockStr = String(stock ?? '').trim().toLowerCase();
+    const isSoldOut = normalizedStockStr === '0' || ['sold', 'out', '품절', '판매완료'].some(kw => normalizedStockStr.includes(kw));
+    const isReserved = normalizedStockStr === 'reserved';
+    // 'onsale', 'sold out', '0', '1'이 아닌 상태이고, reserved도 아니면 예약 가능 대상
     const isPreorderTarget = !isReserved && (
         isNaN(Number(price)) || 
         String(price).trim() === '' || 
         String(price).toUpperCase() === 'TBD' || 
-        !['onsale', 'soldout'].includes(String(stock || '').toLowerCase().replace(/\s+/g, ''))
+        (!isSoldOut && !['onsale', '1', ''].includes(normalizedStockStr.replace(/\s+/g, '')))
     );
     const isScheduledProduct = product.arrival_date && String(product.arrival_date).trim() !== '';
 
@@ -511,12 +512,12 @@ const DetailPage = ({ lang }) => {
 
                     {/* [우] 가격 정보 */}
                     <div className="flex flex-col items-end flex-[1.5]">
-                        {original_price > 0 && (
+                        {Number(original_price) > 0 && (
                             <span className="text-[13px] md:text-[16px] text-gray-400 line-through font-medium italic mb-0.5">
                                 {curr}{Number(original_price).toLocaleString()}
                             </span>
                         )}
-                        {(discount > 0 || hasSpecialDiscount) && !isNaN(rawPrice) && (
+                        {Boolean(discount > 0 || hasSpecialDiscount) && !isNaN(rawPrice) && (
                             <div className="flex items-center gap-1.5 mb-1">
                                 <span className="text-red-500 text-[10px] md:text-[12px] font-black uppercase italic whitespace-nowrap">
                                     {hasSpecialDiscount ? `SALE -${discount_rate}%` : `SALE -${discount}%`}

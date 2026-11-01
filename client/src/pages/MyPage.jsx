@@ -93,6 +93,16 @@ const MyPage = ({ lang }) => {
     const [vendorProducts, setVendorProducts] = useState([]);
     const [vendorLoading, setVendorLoading] = useState(false);
     const [vendorEditPrice, setVendorEditPrice] = useState({});
+    const [vendorEditOriginalPrice, setVendorEditOriginalPrice] = useState({});
+
+    // 왜 문자열 기반 품절 판별 헬퍼를 사용하는가:
+    // 구제로 DB의 stock 컬럼은 판매중일 때 문자열 'onsale', 품절일 때 'Sold Out'으로 저장되는데
+    // 숫자 비교(stock > 0)를 하면 'onsale' > 0 이 false가 되어 판매중 상품이 품절로 잘못 표시되기 때문입니다.
+    const isVendorItemSoldOut = (stock) => {
+        const s = String(stock ?? '').trim().toLowerCase();
+        if (!s) return false;
+        return s === '0' || s.includes('sold') || s.includes('out') || s.includes('품절') || s.includes('판매완료');
+    };
     
     // 관리자 전용 상태
     const [adminOrders, setAdminOrders] = useState([]);
@@ -1339,8 +1349,13 @@ const MyPage = ({ lang }) => {
                     if (data.products) {
                         setVendorProducts(data.products);
                         const initPrices = {};
-                        data.products.forEach(p => initPrices[p.code] = p.price);
+                        const initOriginalPrices = {};
+                        data.products.forEach(p => {
+                            initPrices[p.code] = p.price;
+                            initOriginalPrices[p.code] = p.original_price ?? '';
+                        });
                         setVendorEditPrice(initPrices);
+                        setVendorEditOriginalPrice(initOriginalPrices);
                     }
                     setVendorLoading(false);
                 })
@@ -1439,20 +1454,31 @@ const MyPage = ({ lang }) => {
 
     const handleVendorUpdate = async (productCode, newStock) => {
         const newPrice = vendorEditPrice[productCode];
-        if (!newPrice) return alert('가격을 입력해주세요.');
+        const newOriginalPrice = vendorEditOriginalPrice[productCode] ?? '';
+        if (newPrice === undefined || newPrice === '') return alert('가격을 입력해주세요.');
         if (!confirm('상품 정보를 수정하시겠습니까?')) return;
         
         try {
-            const res = await fetch(`/api/vendor/products/${productCode}`, {
+            const res = await fetch(`/api/vendor/products/${encodeURIComponent(productCode)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ loginId: user.login_id, price: newPrice, stock: newStock })
+                body: JSON.stringify({
+                    loginId: user.login_id,
+                    price: newPrice,
+                    original_price: newOriginalPrice,
+                    stock: newStock
+                })
             });
             const data = await res.json();
             if (data.success) {
                 alert('정상적으로 수정되었습니다.');
                 // 리스트 갱신
-                setVendorProducts(prev => prev.map(p => p.code === productCode ? { ...p, price: newPrice, stock: newStock } : p));
+                setVendorProducts(prev => prev.map(p => p.code === productCode ? {
+                    ...p,
+                    price: newPrice,
+                    original_price: newOriginalPrice,
+                    stock: newStock
+                } : p));
             } else {
                 alert('수정 실패: ' + (data.message || data.error));
             }
@@ -3069,7 +3095,7 @@ const MyPage = ({ lang }) => {
                                 <tbody className="divide-y">
                                     {adminProducts
                                         .map(product => {
-                                            const isSoldOut = product.stock?.toLowerCase().includes('sold') || product.stock?.toLowerCase().includes('out');
+                                            const isSoldOut = isVendorItemSoldOut(product.stock);
                                             return (
                                                 <tr key={product.code} className="hover:bg-gray-50 transition-colors">
                                                     <td className="px-4 py-4">
@@ -3894,13 +3920,16 @@ const MyPage = ({ lang }) => {
                                     <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500 border-b border-gray-100">
                                         <th className="px-4 py-3 font-black">상품사진</th>
                                         <th className="px-4 py-3 font-black">상품정보</th>
-                                        <th className="px-4 py-3 font-black text-right">가격수정 (₩)</th>
+                                        <th className="px-4 py-3 font-black text-right">출고가 수정 (₩)</th>
+                                        <th className="px-4 py-3 font-black text-right">판매가 수정 (₩)</th>
                                         <th className="px-4 py-3 font-black text-center">상태</th>
                                         <th className="px-4 py-3 font-black text-center">작업</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {vendorProducts.map(item => (
+                                    {vendorProducts.map(item => {
+                                        const itemSoldOut = isVendorItemSoldOut(item.stock);
+                                        return (
                                         <tr key={item.code} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-4 py-3 w-16">
                                                 <img 
@@ -3917,13 +3946,22 @@ const MyPage = ({ lang }) => {
                                             <td className="px-4 py-3 text-right">
                                                 <input 
                                                     type="number" 
+                                                    placeholder="미표시(0)"
+                                                    value={vendorEditOriginalPrice[item.code] ?? ''} 
+                                                    onChange={e => setVendorEditOriginalPrice(prev => ({...prev, [item.code]: e.target.value === '' ? '' : Number(e.target.value)}))}
+                                                    className="w-24 px-2 py-1.5 text-right border border-gray-300 rounded text-sm font-mono text-gray-600 focus:ring-2 focus:ring-black outline-none"
+                                                />
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <input 
+                                                    type="number" 
                                                     value={vendorEditPrice[item.code] ?? ''} 
-                                                    onChange={e => setVendorEditPrice(prev => ({...prev, [item.code]: Number(e.target.value)}))}
+                                                    onChange={e => setVendorEditPrice(prev => ({...prev, [item.code]: e.target.value === '' ? '' : Number(e.target.value)}))}
                                                     className="w-24 px-2 py-1.5 text-right border border-gray-300 rounded text-sm font-mono font-bold focus:ring-2 focus:ring-black outline-none"
                                                 />
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                {item.stock > 0 ? (
+                                                {!itemSoldOut ? (
                                                     <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-black">판매중</span>
                                                 ) : (
                                                     <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-[10px] font-black">판매완료(품절)</span>
@@ -3931,19 +3969,20 @@ const MyPage = ({ lang }) => {
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="flex flex-col gap-1 items-center justify-center">
-                                                    <button onClick={() => handleVendorUpdate(item.code, item.stock)} className="bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-gray-800 transition-colors w-full">
+                                                    <button onClick={() => handleVendorUpdate(item.code, itemSoldOut ? 'Sold Out' : 'onsale')} className="bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-gray-800 transition-colors w-full">
                                                         가격 저장
                                                     </button>
                                                     <button 
-                                                        onClick={() => handleVendorUpdate(item.code, item.stock > 0 ? 0 : 1)} 
-                                                        className={`text-[10px] font-bold px-3 py-1.5 rounded transition-colors w-full ${item.stock > 0 ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                                                        onClick={() => handleVendorUpdate(item.code, !itemSoldOut ? 'Sold Out' : 'onsale')} 
+                                                        className={`text-[10px] font-bold px-3 py-1.5 rounded transition-colors w-full ${!itemSoldOut ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
                                                     >
-                                                        {item.stock > 0 ? '품절 처리' : '판매중 전환'}
+                                                        {!itemSoldOut ? '품절 처리' : '판매중 전환'}
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

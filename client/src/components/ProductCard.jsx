@@ -22,8 +22,9 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
     const isArchiveProduct = String(category || '').toLowerCase().includes('dream archive');
     const isArchive = isArchivePage || isArchiveProduct;
 
-    const isSoldOut = ['sold', 'out'].some(kw => String(stock || '').toLowerCase().includes(kw));
-    const isReserved = String(stock || '').toLowerCase() === 'reserved';
+    const normalizedStockStr = String(stock ?? '').trim().toLowerCase();
+    const isSoldOut = normalizedStockStr === '0' || ['sold', 'out', '품절', '판매완료'].some(kw => normalizedStockStr.includes(kw));
+    const isReserved = normalizedStockStr === 'reserved';
     // 가격이 유효한지 확인 (TBD, 빈 값 등이 아닌 숫자인지)
     const hasValidPrice = !isNaN(Number(price)) && String(price).trim() !== '';
 
