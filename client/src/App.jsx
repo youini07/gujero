@@ -16,25 +16,34 @@ import OrdersPage from './pages/OrdersPage';
 import MyPage from './pages/MyPage';
 import SalePage from './pages/SalePage';
 
+const SUPPORTED_LANGS = ['KR', 'EN', 'TH'];
+function normalizeLangCode(raw) {
+  const upper = String(raw || '').trim().toUpperCase();
+  if (upper === 'KO' || upper === 'KR') return 'KR';
+  if (upper === 'EN') return 'EN';
+  if (upper === 'TH') return 'TH';
+  return '';
+}
+
 /**
- * URL의 lang 파라미터를 컴포넌트 state와 동기화해주는 핸들러
+ * URL의 lang 파라미터와 localStorage를 동기화하여 페이지 이동 시에도 선택 언어가 유지되도록 보장합니다.
  */
 function LangSyncHandler({ lang, setLang }) {
   const location = useLocation();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const urlLang = params.get('lang');
-    
-    // 1. URL에 lang이 있고 현재 state와 다르면 state 업데이트 (리다이렉트는 하지 않음)
-    if (urlLang && urlLang !== lang) {
+    const urlLang = normalizeLangCode(params.get('lang'));
+
+    if (urlLang && SUPPORTED_LANGS.includes(urlLang) && urlLang !== lang) {
       setLang(urlLang);
+      try { localStorage.setItem('gujero_lang', urlLang); } catch (e) {}
+    } else {
+      try { localStorage.setItem('gujero_lang', lang); } catch (e) {}
     }
-    
-    // 2. HTML 태그에 반영
-    document.documentElement.lang = lang.toLowerCase();
-  }, [lang, location.pathname, location.search, navigate]);
+
+    document.documentElement.lang = lang === 'KR' ? 'ko' : lang.toLowerCase();
+  }, [lang, location.pathname, location.search, setLang]);
 
   return null;
 }
@@ -91,9 +100,21 @@ function HomeRouter({ lang }) {
 }
 
 function App() {
-  const [lang, setLang] = useState(
-    () => new URLSearchParams(window.location.search).get('lang') || 'KR'
-  );
+  const [lang, setLangState] = useState(() => {
+    const fromUrl = normalizeLangCode(new URLSearchParams(window.location.search).get('lang'));
+    if (fromUrl) return fromUrl;
+    try {
+      const saved = normalizeLangCode(localStorage.getItem('gujero_lang'));
+      if (saved) return saved;
+    } catch (e) {}
+    return 'KR';
+  });
+
+  const setLang = (next) => {
+    const norm = normalizeLangCode(next) || 'KR';
+    try { localStorage.setItem('gujero_lang', norm); } catch (e) {}
+    setLangState(norm);
+  };
 
   return (
     <AuthProvider>

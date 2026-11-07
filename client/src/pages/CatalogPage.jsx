@@ -458,11 +458,11 @@ const CatalogPage = ({ lang }) => {
                                         type="text" 
                                         value={searchInput}
                                         onChange={(e) => setSearchInput(e.target.value)}
-                                        placeholder="상품코드 또는 상품명 검색"
+                                        placeholder={getTranslation(lang, 'search_placeholder') || (lang === 'TH' ? 'ค้นหาชื่อสินค้า / แบรนด์ / รหัส' : lang === 'EN' ? 'Search code, brand, or name' : '상품코드 또는 상품명 검색')}
                                         className="w-full text-[13px] border-b border-gray-200 px-2 py-1 focus:outline-none focus:border-black transition-colors bg-transparent placeholder-gray-300"
                                     />
                                     <button type="submit" className="shrink-0 px-3 py-1 bg-black text-white text-[11px] font-bold rounded hover:bg-gray-800 transition-colors">
-                                        검색
+                                        {getTranslation(lang, 'search_btn') || (lang === 'TH' ? 'ค้นหา' : lang === 'EN' ? 'Search' : '검색')}
                                     </button>
                                 </form>
 
@@ -487,7 +487,7 @@ const CatalogPage = ({ lang }) => {
                                         />
                                     </div>
                                     <button onClick={applyWidthSlider} className="shrink-0 px-3 py-1 bg-black text-white text-[11px] font-bold rounded hover:bg-gray-800 transition-colors">
-                                        적용
+                                        {lang === 'TH' ? 'ตกลง' : lang === 'EN' ? 'Apply' : '적용'}
                                     </button>
                                 </div>
                             </div>
@@ -545,18 +545,20 @@ const CatalogPage = ({ lang }) => {
                     {vendorProfile && (
                         <>
                         <button 
-                            onClick={() => window.location.href = '/vendors'}
+                            onClick={() => window.location.href = `/vendors?lang=${lang}`}
                             className="mb-4 flex items-center gap-2 text-gray-600 hover:text-black font-semibold transition-colors"
                         >
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M19 12H5M12 19l-7-7 7-7"/>
                             </svg>
-                            매장 목록으로 돌아가기
+                            {lang === 'TH' ? 'กลับไปยังรายชื่อร้านค้า' : lang === 'EN' ? 'Back to Stores' : '매장 목록으로 돌아가기'}
                         </button>
                         <div className="mb-6 animate-fadeIn bg-[#FFFDF9] text-gray-900 rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-amber-900/10">
                             <div className="flex flex-col md:flex-row p-6 md:p-8 gap-6 md:gap-8 items-start md:items-center">
                                 <div className="flex-1">
-                                    <h2 className="text-3xl md:text-4xl font-black mb-3 text-gray-900">{vendorProfile.store_name || "상호명 미등록"}</h2>
+                                    <h2 className="text-3xl md:text-4xl font-black mb-3 text-gray-900">
+                                        {vendorProfile.store_name || vendorProfile.vendor_code || (lang === 'TH' ? 'ร้านค้าวินเทจ' : lang === 'EN' ? 'Vintage Store' : '상호명 미등록')}
+                                    </h2>
                                     {vendorProfile.description && (
                                         <p className="text-sm md:text-base text-gray-600 whitespace-pre-wrap mb-5 leading-relaxed">{vendorProfile.description}</p>
                                     )}
@@ -564,7 +566,9 @@ const CatalogPage = ({ lang }) => {
                                         <div className="bg-black/5 backdrop-blur-sm p-4 rounded-xl text-xs md:text-sm text-gray-600 whitespace-pre-wrap border border-black/5">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="text-lg">📌</span>
-                                                <span className="font-bold text-gray-800 tracking-wide">매장 공지 / 정책</span>
+                                                <span className="font-bold text-gray-800 tracking-wide">
+                                                    {lang === 'TH' ? 'ประกาศ / นโยบายร้านค้า' : lang === 'EN' ? 'Store Notice / Policy' : '매장 공지 / 정책'}
+                                                </span>
                                             </div>
                                             <div className="leading-relaxed pl-1">{vendorProfile.rules}</div>
                                         </div>
@@ -598,14 +602,14 @@ const CatalogPage = ({ lang }) => {
                                     onClick={() => updateParam('hide_so', hideSoldOut === 'true' ? 'false' : 'true')}
                                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${hideSoldOut === 'true' ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-300 hover:border-black'}`}
                                 >
-                                    {hideSoldOut === 'true' ? '품절 상품 보기' : '품절 상품 숨기기'}
+                                    {hideSoldOut === 'true' ? (lang === 'TH' ? 'แสดงสินค้าหมด' : lang === 'EN' ? 'Show Sold Out' : '품절 상품 보기') : (lang === 'TH' ? 'ซ่อนสินค้าหมด' : lang === 'EN' ? 'Hide Sold Out' : '품절 상품 숨기기')}
                                 </button>
                             )}
                         </div>
                     </div>
 
                     {!loading && products.length === 0 ? (
-                            <div className="text-center py-20 text-gray-500 font-medium">등록된 상품이 없습니다.</div>
+                            <div className="text-center py-20 text-gray-500 font-medium">{getTranslation(lang, 'no_products')}</div>
                         ) : loading ? (
                         <div className="flex items-center justify-center h-64">
                             <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>

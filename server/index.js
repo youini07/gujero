@@ -1576,7 +1576,37 @@ const syncData = async () => {
                     const descQ = getCell(16);
                     const descR = getCell(17);
                     let description = getCell(18);
-                    if (descQ || descR) description = `[상태: ${descQ}] [결함: ${descR}]\n` + description;
+                    // 왜 동기화 시점에도 [구매전 필독] 중복 블록을 정리하는가:
+                    // 이미 웹사이트 시트(WEBSITE_SHEET_ID)에 올라가 있던 구버전 상품들 중 구매전 필독이 2~4회 누적된 데이터도
+                    // 재업로드 없이 /api/sync 한 번만으로 상세페이지에서 깔끔하게 1회만 노출되도록 정제합니다.
+                    if (description) {
+                        const paras = String(description)
+                            .replace(/\r\n/g, '\n')
+                            .split(/\n{2,}/)
+                            .map(p => p.trim())
+                            .filter(Boolean);
+                        const seenNorm = new Set();
+                        let noticeCount = 0;
+                        const dedupedParas = [];
+                        for (const p of paras) {
+                            const firstLine = p.split('\n')[0].trim();
+                            const isNotice = /^(?:[\[\(<【※★◈■▶•\-*\s]*)(?:구매\s*전\s*필독|구매전\s*필독|필독\s*사항|구매\s*시\s*필독|구매\s*필독)/.test(firstLine)
+                                || p.includes('빈티지 제품으로 자연스러운 사용감이나 미세하자는 있을 수 있습니다');
+                            const norm = p.replace(/\s+/g, ' ').trim();
+                            if (seenNorm.has(norm)) continue;
+                            if (isNotice) {
+                                if (noticeCount >= 1) continue;
+                                noticeCount += 1;
+                            }
+                            seenNorm.add(norm);
+                            dedupedParas.push(p);
+                        }
+                        description = dedupedParas.join('\n\n');
+                    }
+                    const alreadyHasConditionLine = /(?:사용감정도|제품상태|\[상태\s*:)/.test(description || '');
+                    if ((descQ || descR) && !alreadyHasConditionLine) {
+                        description = `[상태: ${descQ}] [결함: ${descR}]\n` + description;
+                    }
 
                     const image_url = getCell(28) || getCell(20); // AC열 또는 U열
                     const nukki_url = getCell(21);
@@ -1665,7 +1695,7 @@ app.get('/api/sync', async (req, res) => {
 app.get('/api/deploy-check', (req, res) => {
     db.get('SELECT COUNT(*) as count FROM products', [], (err, row) => {
         res.json({ 
-            version: 'FIXED-DB-PATH-V4',
+            version: 'GUJERO-3LANG-V6',
             dbPath: dbPath,
             productCount: row ? row.count : 'ERROR',
             deployedAt: new Date().toISOString(),
@@ -2065,9 +2095,11 @@ app.get('/api/products', async (req, res) => {
         }
 
         if (search) {
-            query += ` AND (name LIKE ? OR code LIKE ?)`;
-            whereClause += ` AND (name LIKE ? OR code LIKE ?)`;
-            params.push(`%${search}%`, `%${search}%`);
+            const searchClause = ` AND (name LIKE ? OR COALESCE(name_en, '') LIKE ? OR COALESCE(name_th, '') LIKE ? OR COALESCE(brand, '') LIKE ? OR code LIKE ?)`;
+            query += searchClause;
+            whereClause += searchClause;
+            const sLike = `%${search}%`;
+            params.push(sLike, sLike, sLike, sLike, sLike);
         }
 
         // In-Stock 제품만 보기 필터: 가격이 있고, 품절이 아닌 상품

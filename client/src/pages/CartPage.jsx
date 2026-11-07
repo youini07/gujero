@@ -17,10 +17,10 @@ const CartPage = ({ lang }) => {
 
     const handleCheckout = () => {
         if (!isLoggedIn) {
-            navigate('/login');
+            navigate(`/login?lang=${lang}`);
             return;
         }
-        navigate('/checkout');
+        navigate(`/checkout?lang=${lang}`);
     };
 
     if (cartLoading) {
@@ -40,7 +40,7 @@ const CartPage = ({ lang }) => {
                     <div className="text-5xl mb-4">🛒</div>
                     <h2 className="text-xl font-bold text-gray-700 mb-2">{t('cart_empty')}</h2>
                     <p className="text-gray-400 mb-6">{t('cart_empty_desc')}</p>
-                    <Link to="/" className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium text-sm hover:bg-gray-800 transition-colors">
+                    <Link to={`/?lang=${lang}`} className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium text-sm hover:bg-gray-800 transition-colors">
                         {t('cart_go_shopping')}
                     </Link>
                 </div>
@@ -87,7 +87,7 @@ const CartPage = ({ lang }) => {
                                             <span className="text-xs text-gray-400 uppercase tracking-wider">{item.brand}</span>
                                             {isPreorderItem && (
                                                 <span className="text-[9px] bg-blue-50 text-blue-600 font-bold px-1.5 py-0.5 rounded border border-blue-100 uppercase tracking-wider">
-                                                    {lang === 'KR' ? '예약 대기' : 'Preorder'}
+                                                    {lang === 'KR' ? '예약 대기' : lang === 'TH' ? 'รอกำหนด' : 'Preorder'}
                                                 </span>
                                             )}
                                         </div>
@@ -100,7 +100,7 @@ const CartPage = ({ lang }) => {
                                     <div className="text-right shrink-0">
                                         {isPreorderItem ? (
                                             <p className="text-xs font-bold text-blue-600 bg-blue-50/50 px-2 py-1 rounded border border-blue-100/50">
-                                                {lang === 'KR' ? '가격 책정 전' : 'TBD'}
+                                                {lang === 'KR' ? '가격 책정 전' : lang === 'TH' ? 'รอกำหนดราคา' : 'TBD'}
                                             </p>
                                         ) : (
                                             <p className="text-sm font-bold">₩{unitPrice.toLocaleString()}</p>
@@ -133,12 +133,14 @@ const CartPage = ({ lang }) => {
                             <span className="text-lg shrink-0">ℹ️</span>
                             <div>
                                 <h4 className="font-bold mb-0.5 text-blue-900">
-                                    {lang === 'KR' ? '구매예약 신청 상품이 포함되어 있습니다.' : 'Preorder Items Included'}
+                                    {lang === 'KR' ? '구매예약 신청 상품이 포함되어 있습니다.' : lang === 'TH' ? 'มีสินค้าสั่งจองล่วงหน้ารวมอยู่ด้วย' : 'Preorder Items Included'}
                                 </h4>
                                 <p className="text-xs text-blue-700 leading-relaxed">
                                     {lang === 'KR' 
                                         ? '도착하지 않은 예약 상품은 합계 금액(₩0)에서 임시 제외되었습니다. 관리자가 구매예약을 확인하고 최종 가격을 책정하면 마이페이지에서 상세 가격 확인이 가능하며, 상품 상태도 예약중 상품으로 변경됩니다.'
-                                        : 'Preorder items are excluded from the current total. The admin will review and finalize the price, which will update your order and mark the product as reserved.'}
+                                        : lang === 'TH'
+                                            ? 'สินค้าสั่งจองยังไม่ถูกรวมในยอดชำระ (₩0) ชั่วคราว เมื่อผู้ดูแลกำหนดราคาสุทธิแล้ว คุณสามารถตรวจสอบราคาได้ในหน้าของฉัน และสถานะสินค้าจะเปลี่ยนเป็นจองแล้ว'
+                                            : 'Preorder items are excluded from the current total. The admin will review and finalize the price, which will update your order and mark the product as reserved.'}
                                 </p>
                             </div>
                         </div>

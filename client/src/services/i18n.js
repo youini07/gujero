@@ -296,7 +296,8 @@ const translations = {
         authentic_notice: 'เราจำหน่ายเฉพาะสินค้าของแท้เท่านั้น หากต้องการข้อมูลสินค้าเพิ่มเติม สามารถสอบถามได้ทางเมสเซนเจอร์',
         shipping_fee: 'ค่าจัดส่ง',
         analytics_kpi_shipping_cost: 'ค่าส่งจ่ายจริง',
-        shipping_free_condition: '(10만원 이상 무료배송)',
+        shipping_free_condition: '(ส่งฟรีเมื่อซื้อครบ ₩100,000)',
+        bottom_nav_vendor: 'ร้านค้า',
         coupon_title: 'คูปองส่วนลด (Coupon)',
         coupon_placeholder: 'กรอกรหัสคูปอง',
         coupon_apply: 'ใช้คูปอง',
@@ -1269,26 +1270,100 @@ export const formatArrivalDate = (dateStr, lang) => {
     return dateStr;
 };
 
-export const getTranslation = (lang, key) => {
-    if (!key) return key;
-    const l = translations[lang] || translations['KR'];
-    
-    // 1. Exact match
-    if (l[key]) return l[key];
-    
-    // 2. Trimmed match
-    const trimmedKey = String(key).trim();
-    if (l[trimmedKey]) return l[trimmedKey];
+const EXTRA_SUBCATEGORY_TRANSLATIONS = {
+    EN: {
+        '반팔티': 'Short Sleeve T-Shirt',
+        '긴팔티': 'Long Sleeve T-Shirt',
+        '카라티': 'Polo Shirt',
+        '나시/민소매': 'Sleeveless / Tank Top',
+        '가디건': 'Cardigan',
+        '코트': 'Coat',
+        '점퍼': 'Jumper / Jacket',
+        '청바지': 'Jeans / Denim',
+        '슬랙스': 'Slacks',
+        '카고바지': 'Cargo Pants',
+        '면바지': 'Cotton Pants',
+        '스커트': 'Skirt',
+        '스커트/치마': 'Skirt',
+        '원피스/투피스': 'Dress / Two-piece',
+        '머플러/스카프': 'Muffler / Scarf',
+        '벨트': 'Belt',
+        '지갑': 'Wallet',
+        '선글라스/안경': 'Eyewear',
+        '시계/주얼리': 'Watch / Jewelry',
+        '신발/가방/잡화': 'Shoes / Bags / Acc',
+        '아우터': 'Outerwear',
+        '상의': 'Tops',
+        '하의': 'Bottoms',
+        '원피스': 'Dress',
+        '기타': 'Others',
+        bottom_nav_vendor: 'Stores',
+    },
+    TH: {
+        '반팔티': 'เสื้อยืดแขนสั้น',
+        '긴팔티': 'เสื้อแขนยาว',
+        '카라티': 'เสื้อโปโล',
+        '나시/민소매': 'เสื้อแขนกุด',
+        '가디건': 'เสื้อคาร์ดิแกน',
+        '코트': 'เสื้อโค้ท',
+        '점퍼': 'เสื้อแจ็คเก็ต',
+        '청바지': 'กางเกงยีนส์',
+        '슬랙스': 'กางเกงสแล็ค',
+        '카고바지': 'กางเกงคาร์โก้',
+        '면바지': 'กางเกงผ้าฝ้าย',
+        '스커트': 'กระโปรง',
+        '스커트/치마': 'กระโปรง',
+        '원피스/투피스': 'ชุดเดรส/ทูพีซ',
+        '머플러/스카프': 'ผ้าพันคอ',
+        '벨트': 'เข็มขัด',
+        '지갑': 'กระเป๋าสตางค์',
+        '선글라스/안경': 'แว่นตา',
+        '시계/주얼리': 'นาฬิกา/เครื่องประดับ',
+        bottom_nav_vendor: 'ร้านค้า',
+    },
+    KR: {
+        bottom_nav_vendor: '매장',
+    }
+};
 
-    // 3. Space-removed match (for cases like "A / B" vs "A/B")
+const lookupSingleKey = (lang, rawKey) => {
+    if (!rawKey) return rawKey;
+    const normLang = lang === 'KO' ? 'KR' : (lang || 'KR');
+    const l = translations[normLang] || translations['KR'];
+    const extra = EXTRA_SUBCATEGORY_TRANSLATIONS[normLang] || {};
+
+    if (l[rawKey]) return l[rawKey];
+    if (extra[rawKey]) return extra[rawKey];
+
+    const trimmedKey = String(rawKey).trim();
+    if (l[trimmedKey]) return l[trimmedKey];
+    if (extra[trimmedKey]) return extra[trimmedKey];
+
     const noSpaceKey = trimmedKey.replace(/\s+/g, '');
     for (const [k, v] of Object.entries(l)) {
-        if (k.replace(/\s+/g, '') === noSpaceKey) {
-            return v;
-        }
+        if (k.replace(/\s+/g, '') === noSpaceKey) return v;
     }
-    
-    return key;
+    for (const [k, v] of Object.entries(extra)) {
+        if (k.replace(/\s+/g, '') === noSpaceKey) return v;
+    }
+    return rawKey;
+};
+
+export const getTranslation = (lang, key) => {
+    if (!key) return key;
+    const strKey = String(key);
+    const direct = lookupSingleKey(lang, strKey);
+    if (direct !== strKey) return direct;
+
+    // 밴드어드민 복합 카테고리(예: "상의 > 반팔티", "아우터 > 자켓") 자동 분할 번역
+    if (strKey.includes('>')) {
+        return strKey
+            .split('>')
+            .map(part => lookupSingleKey(lang, part.trim()))
+            .join(' > ');
+    }
+
+    return direct;
 };
 
 export default translations;

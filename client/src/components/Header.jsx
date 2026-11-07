@@ -70,7 +70,14 @@ const Header = ({ lang, setLang }) => {
         { name: getTranslation(lang, 'category_winter'), path: '/?category=Winter' },
     ];
 
-    const langs = ['KR', 'EN'];
+    const langs = ['KR', 'EN', 'TH'];
+
+    const handleSelectLang = (nextLang) => {
+        const params = new URLSearchParams(location.search);
+        params.set('lang', nextLang);
+        navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+        setLang(nextLang);
+    };
 
     return (
         <header className="fixed top-0 w-full max-w-[600px] sm:landscape:max-w-[900px] md:max-w-[900px] lg:max-w-[1200px] bg-white z-[1000] border-b border-border flex flex-col">
@@ -106,8 +113,26 @@ const Header = ({ lang, setLang }) => {
                         </a>
                     </div>
 
-                    {/* 우측: 장바구니 아이콘 + 햄버거 메뉴 */}
-                    <div className="flex-1 flex items-center justify-end gap-3 z-10">
+                    {/* 우측: 3개국어 빠른 전환 + 장바구니 아이콘 + 햄버거 메뉴 */}
+                    <div className="flex-1 flex items-center justify-end gap-1.5 md:gap-2.5 z-10">
+                        {/* 상단 빠른 언어 전환 (KR / EN / TH) */}
+                        <div className="flex items-center bg-gray-100 rounded-full p-0.5 border border-gray-200">
+                            {langs.map(l => (
+                                <button
+                                    key={l}
+                                    type="button"
+                                    onClick={() => handleSelectLang(l)}
+                                    className={`px-1.5 md:px-2 py-0.5 text-[10px] md:text-[11px] font-extrabold rounded-full transition-colors ${
+                                        lang === l
+                                            ? 'bg-black text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-black'
+                                    }`}
+                                >
+                                    {l}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* 장바구니 아이콘 (관리자가 아닐 때만 표시) */}
                         {!(user?.role === 'admin' || user?.login_id === 'dreamstudio') && (
                             <Link
@@ -142,21 +167,18 @@ const Header = ({ lang, setLang }) => {
             {/* 통합 메뉴 (햄버거 클릭 시 - 웹/모바일 동일 적용) */}
             {isMobileMenuOpen && (
                 <div ref={menuRef} className="absolute top-[80px] right-0 w-[65%] sm:w-[50%] lg:w-[40%] bg-white border-b border-l border-border p-4 flex flex-col gap-4 shadow-xl z-50 rounded-bl-xl origin-top-right animate-fade-in">
-                    {/* 모바일: 언어 선택 (최상단) */}
+                    {/* 모바일/웹 통합 메뉴 내 언어 선택 (KR / EN / TH) */}
                     <div className="flex gap-2 pb-3 border-b border-gray-100">
                         {langs.map(l => (
                             <button
                                 key={l}
                                 onClick={() => {
-                                    const params = new URLSearchParams(location.search);
-                                    params.set('lang', l);
-                                    navigate(`${location.pathname}?${params.toString()}`, { replace: true });
-                                    setLang(l);
+                                    handleSelectLang(l);
                                     setIsMobileMenuOpen(false);
                                 }}
                                 className={`flex-1 text-[14px] font-black py-2 rounded transition-colors text-center ${lang === l ? 'bg-black text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                             >
-                                {l}
+                                {l === 'KR' ? 'KR 한국어' : l === 'EN' ? 'EN English' : 'TH ไทย'}
                             </button>
                         ))}
                     </div>

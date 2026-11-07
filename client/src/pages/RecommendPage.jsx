@@ -289,7 +289,7 @@ const RecommendPage = ({ lang }) => {
                                                     </div>
                                                     <div className="w-full text-center">
                                                         <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest truncate">{item.brand || 'BRAND'}</p>
-                                                        <p className="text-[12px] font-bold text-black mt-0.5 line-clamp-2 leading-tight">{item.name_en || item.name}</p>
+                                                        <p className="text-[12px] font-bold text-black mt-0.5 line-clamp-2 leading-tight">{lang === 'TH' ? (item.name_th || item.name_en || item.name) : lang === 'EN' ? (item.name_en || item.name) : (item.name || item.name_en)}</p>
                                                     </div>
                                                 </div>
                                             </Link>

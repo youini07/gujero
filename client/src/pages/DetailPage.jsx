@@ -65,15 +65,20 @@ const DetailPage = ({ lang }) => {
             <div className="text-6xl mb-6">🔍</div>
             <div className="text-2xl text-red-500 font-black mb-2">{getTranslation(tLang, 'no_products')}</div>
             <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                상품 정보를 불러오지 못했습니다. <br />
-                상품 코드(<b>{code}</b>)가 정확한지 확인하시거나 아래 버튼을 눌러 다시 시도해주세요.
+                {tLang === 'TH' ? (
+                    <>ไม่สามารถโหลดข้อมูลสินค้าได้<br />กรุณาตรวจสอบรหัสสินค้า (<b>{code}</b>) หรือลองใหม่อีกครั้ง</>
+                ) : tLang === 'EN' ? (
+                    <>Failed to load product details.<br />Please check the product code (<b>{code}</b>) or try again below.</>
+                ) : (
+                    <>상품 정보를 불러오지 못했습니다. <br />상품 코드(<b>{code}</b>)가 정확한지 확인하시거나 아래 버튼을 눌러 다시 시도해주세요.</>
+                )}
             </p>
             <div className="flex gap-4">
                 <button
                     onClick={() => window.location.reload()}
                     className="px-8 py-3 bg-gray-100 text-black font-bold rounded-xl hover:bg-gray-200 transition-colors"
                 >
-                    {getTranslation(tLang, 'refresh') || '새로고침'}
+                    {tLang === 'TH' ? 'รีเฟรช' : tLang === 'EN' ? 'Refresh' : (getTranslation(tLang, 'refresh') || '새로고침')}
                 </button>
                 <button
                     onClick={() => navigate(`/?lang=${lang}`)}
@@ -86,7 +91,12 @@ const DetailPage = ({ lang }) => {
     );
 
     const { brand, name, price, original_price, size, category, description, image_url, stock, discount_rate, product_images, name_en, name_th, description_en, description_th, sku, nukki_url } = product;
-    const displayName = lang === 'EN' && name_en ? name_en : lang === 'TH' && name_th ? name_th : name;
+    const displayName =
+        tLang === 'TH'
+            ? (name_th || name_en || name)
+            : tLang === 'EN'
+                ? (name_en || name)
+                : name;
     const normalizedStockStr = String(stock ?? '').trim().toLowerCase();
     const isSoldOut = normalizedStockStr === '0' || ['sold', 'out', '품절', '판매완료'].some(kw => normalizedStockStr.includes(kw));
     const isReserved = normalizedStockStr === 'reserved';
@@ -151,57 +161,168 @@ const DetailPage = ({ lang }) => {
     });
 
 
+    // 중복 누적된 [구매전 필독] / 영문·태국어 안내 블록을 1회만 남기도록 정제합니다.
+    const dedupeNoticeParagraphs = (rawText) => {
+        if (!rawText) return '';
+        const paras = String(rawText)
+            .replace(/\r\n/g, '\n')
+            .split(/\n{2,}/)
+            .map(p => p.trim())
+            .filter(Boolean);
+        const seen = new Set();
+        let noticeCount = 0;
+        const out = [];
+        for (const p of paras) {
+            const firstLine = p.split('\n')[0].trim();
+            const isNotice =
+                /^(?:[\[\(<【※★◈■▶•\-*\s]*)(?:구매\s*전\s*필독|구매전\s*필독|필독\s*사항|구매\s*시\s*필독|구매\s*필독|IMPORTANT NOTICE|NOTICE BEFORE PURCHASE|PLEASE READ|ข้อควรอ่าน)/i.test(firstLine) ||
+                p.includes('빈티지 제품으로 자연스러운 사용감이나 미세하자는 있을 수 있습니다');
+            const norm = p.replace(/\s+/g, ' ').trim();
+            if (seen.has(norm)) continue;
+            if (isNotice) {
+                if (noticeCount >= 1) continue;
+                noticeCount += 1;
+            }
+            seen.add(norm);
+            out.push(p);
+        }
+        return out.join('\n\n');
+    };
+
+    // 구버전 DB 상품(영문 1줄 요약 또는 태국어 미생성 상태)도 한국어 스펙 정보를 기반으로 3개국어 완성형 설명으로 보강합니다.
+    const buildStructuredEnThFallback = (targetLng, rawDescKr, rawDescEn, rawDescTh) => {
+        const kr = String(rawDescKr || '');
+        const condMatch = kr.match(/(?:사용감정도|제품상태|\[상태)\s*:\s*([^\]\n/]+)/);
+        const defectMatch = kr.match(/(?:하자여부|\[결함)\s*:\s*([^\]\n]+)/);
+        const authMatch = kr.match(/정가품여부\s*:\s*([^\n]+)/);
+        const condRaw = (condMatch ? condMatch[1] : '').replace(/\s+/g, '');
+        const defectRaw = (defectMatch ? defectMatch[1] : '').trim();
+        const authRaw = (authMatch ? authMatch[1] : '').trim();
+
+        const mapCond = () => {
+            if (condRaw.includes('새상품') || condRaw.includes('미사용')) {
+                return targetLng === 'TH' ? 'สินค้าใหม่มือหนึ่ง (ยังไม่ผ่านการใช้งาน)' : 'Brand New (Unused)';
+            }
+            if (condRaw.includes('사용감없음')) {
+                return targetLng === 'TH' ? 'สภาพเหมือนใหม่ (แทบไม่มีร่องรอยการใช้งาน)' : 'Like New (Minimal Signs of Wear)';
+            }
+            if (condRaw.includes('사용감많음')) {
+                return targetLng === 'TH' ? 'มีร่องรอยการใช้งานตามสไตล์วินเทจ' : 'Visible Signs of Vintage Wear';
+            }
+            return targetLng === 'TH' ? 'สภาพดี (มีร่องรอยการใช้งานเล็กน้อย)' : 'Gently Used (Good Vintage Condition)';
+        };
+
+        const isAuthentic = authRaw.includes('정품') && !authRaw.includes('모름') && !authRaw.includes('가품');
+        const authLabel = targetLng === 'TH'
+            ? (isAuthentic ? 'ของแท้ 100%' : 'ไม่ทราบแน่ชัด (สินค้าวินเทจ)')
+            : (isAuthentic ? '100% Authentic' : 'Authenticity Unverified (Vintage Item)');
+
+        const isNoDefect = !defectRaw || defectRaw === '없음' || /하자가\s*없는|하자\s*없음|깨끗한/.test(defectRaw);
+        const defectLabel = targetLng === 'TH'
+            ? (isNoDefect ? 'ไม่มีตำหนิหรือคราบสกปรก สภาพสะอาดเรียบร้อย' : 'มีร่องรอยการใช้งานเล็กน้อยตามสไตล์วินเทจ (กรุณาตรวจสอบรูปภาพเพิ่มเติม)')
+            : (isNoDefect ? 'No stains or damages — clean vintage condition.' : 'Minor signs of vintage wear may be present (please check detail photos).');
+
+        let measLine = '';
+        const rawActual = String(product.measured_size || product.actual_size || '').trim();
+        if (rawActual && rawActual.toLowerCase() !== 'nan') {
+            const parts = rawActual.split(',').map(s => s.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+                const wNum = parseFloat(parts[0]);
+                const lNum = parseFloat(parts[1]);
+                const wStr = !isNaN(wNum) ? `${wNum}${targetLng === 'TH' ? ' ซม.' : 'cm'} (${Number((wNum / 2.54).toFixed(1))}")` : parts[0];
+                const lStr = !isNaN(lNum) ? `${lNum}${targetLng === 'TH' ? ' ซม.' : 'cm'} (${Number((lNum / 2.54).toFixed(1))}")` : parts[1];
+                measLine = targetLng === 'TH'
+                    ? `รอบอก/เอว : ${wStr} / ความยาวรวม : ${lStr}`
+                    : `Chest/Waist : ${wStr} / Total Length : ${lStr}`;
+            } else if (parts.length === 1) {
+                measLine = targetLng === 'TH' ? `ขนาดวัดจริง : ${parts[0]}` : `Measured Size : ${parts[0]}`;
+            }
+        }
+
+        const catTranslated = category ? getTranslation(targetLng, String(category).trim()) : '';
+        if (targetLng === 'TH') {
+            const cleanTh = rawDescTh && !/[가-힣]/.test(rawDescTh) ? dedupeNoticeParagraphs(rawDescTh) : '';
+            if (cleanTh && (cleanTh.includes('▪ ชื่อสินค้า') || (cleanTh.length >= 140 && cleanTh.includes('ข้อควรอ่าน')))) {
+                return cleanTh;
+            }
+            const titleTh = (name_th && !/[가-힣]/.test(name_th) ? name_th : '') || (name_en && !/[가-힣]/.test(name_en) ? name_en : '') || `${brand || 'Vintage'} ${catTranslated || ''}`.trim();
+            const narrativeTh = cleanTh || `สินค้าวินเทจคัดสรรจากแบรนด์ ${brand || 'Vintage'}${catTranslated ? ` (${catTranslated})` : ''} ดีไซน์คลาสสิกและสภาพพร้อมสวมใส่ กรุณาตรวจสอบขนาดวัดจริงและรูปภาพรายละเอียดก่อนสั่งซื้อ`;
+            return [
+                [
+                    `▪ ชื่อสินค้า : ${titleTh}`,
+                    `▪ แบรนด์ : ${brand || 'Unknown'}`,
+                    size ? `▪ ไซส์ป้าย : ${size}` : '',
+                    measLine ? `▪ ขนาดวัดจริง : ${measLine}` : '',
+                    `▪ การรับรองของแท้ : ${authLabel}`,
+                    `▪ สภาพสินค้า : ${mapCond()}`,
+                    `▪ ตำหนิ/ร่องรอย : ${defectLabel}`,
+                ].filter(Boolean).join('\n'),
+                narrativeTh,
+                `[ข้อควรอ่านก่อนสั่งซื้อ]\nสินค้าชิ้นนี้เป็นสินค้าวินเทจมือสอง อาจมีร่องรอยการใช้งานตามธรรมชาติหรือตำหนิเล็กน้อย กรุณาตรวจสอบรูปภาพและขนาดวัดจริงอย่างละเอียดก่อนสั่งซื้อ`,
+            ].filter(Boolean).join('\n\n');
+        }
+
+        const cleanEn = rawDescEn && !/[가-힣]/.test(rawDescEn) ? dedupeNoticeParagraphs(rawDescEn) : '';
+        if (cleanEn && (cleanEn.includes('▪ Product Name') || (cleanEn.length >= 160 && /IMPORTANT NOTICE|NOTICE BEFORE PURCHASE/i.test(cleanEn)))) {
+            return cleanEn;
+        }
+        const titleEn = (name_en && !/[가-힣]/.test(name_en) ? name_en : '') || `${brand || 'Vintage'} ${catTranslated || 'Item'}`.trim();
+        const narrativeEn = cleanEn || `Curated vintage piece from ${brand || 'a classic label'}${catTranslated ? ` (${catTranslated})` : ''}, featuring timeless styling and well-preserved vintage character. Please check the detailed photos and actual measurements below.`;
+        return [
+            [
+                `▪ Product Name : ${titleEn}`,
+                `▪ Brand : ${brand || 'Unknown'}`,
+                size ? `▪ Tagged Size : ${size}` : '',
+                measLine ? `▪ Measurements : ${measLine}` : '',
+                `▪ Authenticity : ${authLabel}`,
+                `▪ Condition : ${mapCond()}`,
+                `▪ Defect / Wear : ${defectLabel}`,
+            ].filter(Boolean).join('\n'),
+            narrativeEn,
+            `[IMPORTANT NOTICE BEFORE PURCHASE]\nAs this is a pre-owned vintage item, minor signs of natural wear or subtle imperfections may be present. Please review the photos and actual measurements carefully before purchasing.`,
+        ].filter(Boolean).join('\n\n');
+    };
+
     const getFilteredDescription = (desc, lng) => {
-        if (lng === 'EN' && description_en) return description_en;
-        if (lng === 'TH' && description_th) return description_th;
+        const upLng = String(lng || 'KR').toUpperCase();
+        if (upLng === 'EN') {
+            return buildStructuredEnThFallback('EN', desc, description_en, description_th);
+        }
+        if (upLng === 'TH') {
+            return buildStructuredEnThFallback('TH', desc, description_en, description_th);
+        }
         if (!desc || desc === 'nan') return "-";
-        
+
         // 3개 국어 태그 지원 ([한국어], [영어], [태국어])
         const extractBlock = (langTag) => {
-            const regex = new RegExp(`\\[${langTag}\\]([\\s\\S]*?)(?=\\[|$)`, 'i');
+            const regex = new RegExp(`\\[${langTag}\\]([\\s\\S]*?)(?=\\[(?:한국어|영어|태국어)\\]|$)`, 'i');
             const match = String(desc).match(regex);
             return match ? match[1].trim() : null;
         };
-        
+
         const korPart = extractBlock('한국어');
-        const engPart = extractBlock('영어');
-        const thaiPart = extractBlock('태국어');
-        
-        if (korPart || engPart || thaiPart) {
-            const upLng = String(lng).toUpperCase();
-            if (upLng === 'KR') return korPart || desc;
-            if (upLng === 'EN') return engPart || korPart || desc;
-            return thaiPart || engPart || korPart || desc;
+        if (korPart) {
+            return dedupeNoticeParagraphs(korPart);
         }
 
         // "(한국어 번역)" 텍스트를 기준으로 태국어와 한국어 분리
         const splitKeyword = "(한국어 번역)";
         if (String(desc).includes(splitKeyword)) {
             const parts = String(desc).split(splitKeyword);
-            const fallbackThai = parts[0].trim();
             const fallbackKr = parts[1].trim();
-            
-            if (lng === 'KR') return fallbackKr || desc;
-            if (lng === 'EN') return fallbackKr || desc; // 과거 데이터는 영어가 없으므로 한국어 노출
-            return fallbackThai || desc;
+            return dedupeNoticeParagraphs(fallbackKr || desc);
         }
 
         const altSplitKeyword = "한국어 번역";
         if (String(desc).includes(altSplitKeyword)) {
             const parts = String(desc).split(altSplitKeyword);
-            const fallbackThai = parts[0].trim();
-            
             let fallbackKr = parts[1].trim();
             if (fallbackKr.startsWith(':')) fallbackKr = fallbackKr.substring(1).trim();
             if (fallbackKr.endsWith(')')) fallbackKr = fallbackKr.substring(0, fallbackKr.length - 1).trim();
-            
-            if (lng === 'KR') return fallbackKr || desc;
-            if (lng === 'EN') return fallbackKr || desc;
-            return fallbackThai || desc;
+            return dedupeNoticeParagraphs(fallbackKr || desc);
         }
 
-        // [Fallback] 명확한 언어 구분 태그가 없는 경우 원본 텍스트 전체 노출
-        return desc;
+        return dedupeNoticeParagraphs(desc);
     };
     const filteredDesc = getFilteredDescription(description, tLang);
 
@@ -226,8 +347,21 @@ const DetailPage = ({ lang }) => {
 
     const buildInquiryMessage = () => {
         const productUrl = window.location.href;
-        const cleanCode = code.startsWith('TEMP_') ? '도착예정' : code;
-        const storeLabel = product.vendor_store_name || product.vendor_code || '판매자';
+        const cleanCode = code.startsWith('TEMP_') ? (tLang === 'TH' ? 'รอกำหนด' : tLang === 'EN' ? 'TBD' : '도착예정') : code;
+        const storeLabel = product.vendor_store_name || product.vendor_code || (tLang === 'TH' ? 'ผู้ขาย' : tLang === 'EN' ? 'Seller' : '판매자');
+        if (tLang === 'TH') {
+            return [
+                `📦 [สอบถามสินค้า GUJERO]`,
+                `• ร้านค้า: ${storeLabel}`,
+                `• สินค้า: [${brand}] ${displayName}`,
+                size ? `• ไซส์: ${size}` : null,
+                `• รหัสสินค้า: ${cleanCode}`,
+                `• ราคา: ${curr}${displayPrice}`,
+                `• ลิงก์สินค้า: ${productUrl}`,
+                ``,
+                `สวัสดีครับ/ค่ะ สนใจสอบถามสินค้าชิ้นนี้จากเว็บไซต์ GUJERO :)`
+            ].filter(v => v !== null).join('\n');
+        }
         if (tLang === 'EN') {
             return [
                 `📦 [GUJERO Product Inquiry]`,
@@ -551,7 +685,7 @@ const DetailPage = ({ lang }) => {
                             {getTranslation(tLang, 'code_label')}
                         </span>
                         <span className="font-black text-black text-[18px] md:text-[22px] whitespace-nowrap">
-                            {code.startsWith('TEMP_') ? (tLang === 'KR' ? '도착 예정' : 'TBD') : code}
+                            {code.startsWith('TEMP_') ? (tLang === 'KR' ? '도착 예정' : tLang === 'TH' ? 'รอกำหนด' : 'TBD') : code}
                         </span>
                     </div>
 
@@ -606,7 +740,7 @@ const DetailPage = ({ lang }) => {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                                 </span>
-                                {tLang === 'KR' ? '예약 완료' : 'Reserved'}
+                                {tLang === 'KR' ? '예약 완료' : tLang === 'TH' ? 'จองแล้ว' : 'Reserved'}
                             </button>
                         ) : isScheduledProduct ? (
                             <button
@@ -630,15 +764,15 @@ const DetailPage = ({ lang }) => {
                                     }`}
                                 >
                                     {addedToCart 
-                                        ? (tLang === 'KR' ? '예약 장바구니 추가됨' : 'Added') 
-                                        : (tLang === 'KR' ? '구매예약 신청' : 'Preorder')}
+                                        ? (tLang === 'KR' ? '예약 장바구니 추가됨' : tLang === 'TH' ? 'เพิ่มในตะกร้าจองแล้ว' : 'Added') 
+                                        : (tLang === 'KR' ? '구매예약 신청' : tLang === 'TH' ? 'สั่งจองล่วงหน้า' : 'Preorder')}
                                 </button>
                             ) : (
                                 <button
                                     onClick={() => navigate(`/login?lang=${lang}&redirect=/product/${code}`)}
                                     className="flex-1 h-full font-black rounded-lg bg-gray-800 hover:bg-black text-white transition-all flex items-center justify-center gap-2 text-[11px] md:text-[13px] uppercase tracking-wider"
                                 >
-                                    {tLang === 'KR' ? '로그인 후 구매예약' : 'Login to Preorder'}
+                                    {tLang === 'KR' ? '로그인 후 구매예약' : tLang === 'TH' ? 'เข้าสู่ระบบเพื่อสั่งจอง' : 'Login to Preorder'}
                                 </button>
                             )
                         ) : (
@@ -669,10 +803,9 @@ const DetailPage = ({ lang }) => {
                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-4.5 md:h-4.5 flex-none">
                                     <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
                                 </svg>
-                                <span className="hidden sm:inline whitespace-nowrap">
-                                    {tLang === 'KR' ? '카카오톡 문의' : 'KakaoTalk Inquiry'}
+                                <span className="whitespace-nowrap">
+                                    {tLang === 'KR' ? '카카오톡 문의' : tLang === 'TH' ? 'สอบถามทาง KakaoTalk' : 'KakaoTalk Inquiry'}
                                 </span>
-                                <span className="inline sm:hidden whitespace-nowrap">카카오톡 문의</span>
                             </button>
                         )}
                     </div>
@@ -683,7 +816,9 @@ const DetailPage = ({ lang }) => {
                             <span className="text-sm">ℹ️</span>
                             {tLang === 'KR' 
                                 ? '현재 가격 미정 상품으로, 구매예약 후 관리자가 최종 가격을 책정한 뒤 주문이 확정됩니다.' 
-                                : 'This item has no fixed price yet. After booking, the admin will set the final price and confirm your preorder.'}
+                                : tLang === 'TH'
+                                    ? 'สินค้านี้ยังไม่ได้กำหนดราคา หลังจากสั่งจองแล้วผู้ดูแลจะแจ้งราคาสุทธิและยืนยันคำสั่งซื้อ'
+                                    : 'This item has no fixed price yet. After booking, the admin will set the final price and confirm your preorder.'}
                         </div>
                     )}
                     {isReserved && (
@@ -691,7 +826,9 @@ const DetailPage = ({ lang }) => {
                             <span className="text-sm">🔒</span>
                             {tLang === 'KR'
                                 ? '이 상품은 이미 다른 고객님의 구매예약이 확정된 상태입니다.'
-                                : 'This item has already been reserved by another customer.'}
+                                : tLang === 'TH'
+                                    ? 'สินค้าชิ้นนี้ถูกจองโดยลูกค้าท่านอื่นเรียบร้อยแล้ว'
+                                    : 'This item has already been reserved by another customer.'}
                         </div>
                     )}
                 </div>
@@ -800,7 +937,13 @@ const DetailPage = ({ lang }) => {
                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                                     <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
                                 </svg>
-                                <span>사장님 카카오톡 상품 문의 연결</span>
+                                <span>
+                                    {tLang === 'TH'
+                                        ? 'เชื่อมต่อแชท KakaoTalk กับผู้ขาย'
+                                        : tLang === 'EN'
+                                            ? 'Seller KakaoTalk Product Inquiry'
+                                            : '사장님 카카오톡 상품 문의 연결'}
+                                </span>
                             </div>
                             <button
                                 onClick={() => setKakaoInquiryModal(null)}
@@ -814,14 +957,25 @@ const DetailPage = ({ lang }) => {
                             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-emerald-900 text-xs font-bold leading-relaxed flex items-start gap-2">
                                 <span className="text-base leading-none">✅</span>
                                 <div>
-                                    어떤 상품에서 문의하셨는지 사장님이 바로 알아보실 수 있도록 <b>아래 상품 정보와 링크가 클립보드에 자동 완성(복사)</b>되었습니다!<br />
-                                    열린 카카오톡 채팅방 입력창에 <b>붙여넣기(Ctrl+V 또는 길게 눌러 붙여넣기)</b> 후 전송해 주세요.
+                                    {tLang === 'TH' ? (
+                                        <>คัดลอกข้อมูลสินค้าและลิงก์ไปยังคลิปบอร์ดเรียบร้อยแล้ว!<br />กรุณาวางข้อความ (<b>Paste / Ctrl+V</b>) ในห้องแชท KakaoTalk เพื่อสอบถามผู้ขาย</>
+                                    ) : tLang === 'EN' ? (
+                                        <>Product details and link have been <b>automatically copied to your clipboard</b>!<br />Simply <b>paste (Ctrl+V or Long Press → Paste)</b> into the KakaoTalk chat room and send.</>
+                                    ) : (
+                                        <>어떤 상품에서 문의하셨는지 사장님이 바로 알아보실 수 있도록 <b>아래 상품 정보와 링크가 클립보드에 자동 완성(복사)</b>되었습니다!<br />열린 카카오톡 채팅방 입력창에 <b>붙여넣기(Ctrl+V 또는 길게 눌러 붙여넣기)</b> 후 전송해 주세요.</>
+                                    )}
                                 </div>
                             </div>
 
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-black text-gray-700">📋 자동 완성된 문의 메시지 (복사 완료)</span>
+                                    <span className="text-xs font-black text-gray-700">
+                                        {tLang === 'TH'
+                                            ? '📋 ข้อความสอบถามอัตโนมัติ (คัดลอกแล้ว)'
+                                            : tLang === 'EN'
+                                                ? '📋 Auto-Completed Inquiry Message (Copied)'
+                                                : '📋 자동 완성된 문의 메시지 (복사 완료)'}
+                                    </span>
                                     <button
                                         type="button"
                                         onClick={async () => {
@@ -831,7 +985,9 @@ const DetailPage = ({ lang }) => {
                                         }}
                                         className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
                                     >
-                                        {inquiryCopiedToast ? '✓ 복사됨!' : '다시 복사'}
+                                        {inquiryCopiedToast
+                                            ? (tLang === 'TH' ? '✓ คัดลอกแล้ว!' : tLang === 'EN' ? '✓ Copied!' : '✓ 복사됨!')
+                                            : (tLang === 'TH' ? 'คัดลอกอีกครั้ง' : tLang === 'EN' ? 'Copy Again' : '다시 복사')}
                                     </button>
                                 </div>
                                 <pre className="w-full p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 whitespace-pre-wrap break-all font-sans leading-relaxed max-h-48 overflow-y-auto">
@@ -852,12 +1008,23 @@ const DetailPage = ({ lang }) => {
                                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                                         <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
                                     </svg>
-                                    <span>{kakaoInquiryModal.storeName} 카카오톡 채팅방 열기</span>
+                                    <span>
+                                        {tLang === 'TH'
+                                            ? `เปิดแชท KakaoTalk ของ ${kakaoInquiryModal.storeName}`
+                                            : tLang === 'EN'
+                                                ? `Open ${kakaoInquiryModal.storeName} KakaoTalk Chat`
+                                                : `${kakaoInquiryModal.storeName} 카카오톡 채팅방 열기`}
+                                    </span>
                                 </a>
                             ) : (
                                 <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold leading-relaxed text-center">
-                                    ⚠️ 이 상품을 업로드한 사장님의 카카오톡 상담 주소가 아직 설정되지 않았습니다.<br />
-                                    (사장님께서 [마이페이지 → 매장 프로필 관리] 또는 [밴드어드민 → 오픈마켓 설정]에서 카카오톡 주소를 입력하시면 즉시 연결됩니다.)
+                                    {tLang === 'TH' ? (
+                                        <>⚠️ ผู้ขายยังไม่ได้ตั้งค่าลิงก์ KakaoTalk สำหรับร้านค้านี้</>
+                                    ) : tLang === 'EN' ? (
+                                        <>⚠️ The seller has not configured a KakaoTalk chat link for this store yet.</>
+                                    ) : (
+                                        <>⚠️ 이 상품을 업로드한 사장님의 카카오톡 상담 주소가 아직 설정되지 않았습니다.<br />(사장님께서 [마이페이지 → 매장 프로필 관리] 또는 [밴드어드민 → 오픈마켓 설정]에서 카카오톡 주소를 입력하시면 즉시 연결됩니다.)</>
+                                    )}
                                 </div>
                             )}
 
@@ -866,7 +1033,7 @@ const DetailPage = ({ lang }) => {
                                 onClick={() => setKakaoInquiryModal(null)}
                                 className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors"
                             >
-                                닫기
+                                {tLang === 'TH' ? 'ปิด' : tLang === 'EN' ? 'Close' : '닫기'}
                             </button>
                         </div>
                     </div>

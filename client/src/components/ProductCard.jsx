@@ -150,7 +150,7 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                     {isReserved && (
                         <div className="absolute bottom-2 left-2 z-10 bg-blue-600/90 text-white px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                            {lang === 'KR' ? '예약중 상품' : 'Reserved'}
+                            {lang === 'KR' ? '예약중 상품' : lang === 'TH' ? 'จองแล้ว' : 'Reserved'}
                         </div>
                     )}
                     
@@ -243,16 +243,25 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                         {brand}
                     </div>
 
-                    {/* 2. 하위카테고리 (또는 상품명) */}
-                    <div className="text-[12px] text-black mt-1 truncate w-full px-1">
-                        {category ? getTranslation(lang, String(category).trim()) : name}
+                    {/* 2. 언어별 상품명 및 하위카테고리 */}
+                    <div className="text-[12px] font-medium text-black mt-1 truncate w-full px-1">
+                        {lang === 'TH'
+                            ? (name_th || (category ? getTranslation(lang, String(category).trim()) : '') || name_en || name)
+                            : lang === 'EN'
+                                ? (name_en || (category ? getTranslation(lang, String(category).trim()) : '') || name)
+                                : (name || (category ? getTranslation(lang, String(category).trim()) : ''))}
                     </div>
+                    {category && (
+                        <div className="text-[10px] text-gray-400 mt-0.5 truncate w-full px-1">
+                            {getTranslation(lang, String(category).trim())}
+                        </div>
+                    )}
 
                     {isArchive && (
                         <div className="flex flex-col gap-1 text-[11px] text-[#555] mt-2 mb-1 border-y border-black/5 py-2 px-1">
                             <div className="truncate"><span className="font-bold text-black">{getTranslation(lang, 'filter_size')}:</span> <span className="text-black font-medium">{product.size || '-'}</span></div>
                             {product.measured_size && (
-                                <div className="truncate"><span className="font-bold text-black">{lang === 'KR' ? '실측' : 'Actual'}:</span> <span className="text-black font-medium">
+                                <div className="truncate"><span className="font-bold text-black">{lang === 'KR' ? '실측' : lang === 'TH' ? 'วัดจริง' : 'Actual'}:</span> <span className="text-black font-medium">
                                     {String(product.measured_size).split(',').map(s => {
                                         const val = parseFloat(s);
                                         return isNaN(val) ? s.trim() : `${val}cm (${Number((val / 2.54).toFixed(1))}")`;
