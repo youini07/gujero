@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable react/prop-types */
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchVendors } from '../services/api';
+import { getLocalizedVendorField, normalizeLangCode } from '../services/vendorChannels';
 
 /**
  * 입점 매장 목록 페이지 (KR / EN / TH 3개국어 지원)
@@ -14,13 +16,17 @@ export default function VendorListPage({ lang = 'KR' }) {
     const [error, setError] = useState(null);
     const navigate = useNavigate();
 
-    const normLang = String(lang || 'KR').toUpperCase() === 'KO' ? 'KR' : String(lang || 'KR').toUpperCase();
+    const normLang = normalizeLangCode(lang);
 
     useEffect(() => {
         const loadVendors = async () => {
             try {
                 const data = await fetchVendors();
-                setVendors(data);
+                // 상품이 0개인 빈 상점은 편집샵 목록에서 보이지 않도록 프론트엔드에서도 이중 필터링
+                const nonEmptyVendors = (Array.isArray(data) ? data : []).filter(
+                    (v) => Number(v?.cnt || 0) > 0
+                );
+                setVendors(nonEmptyVendors);
             } catch (err) {
                 console.error('Failed to load vendors', err);
                 setError(
@@ -68,9 +74,13 @@ export default function VendorListPage({ lang = 'KR' }) {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-3.5">
-                        {vendors.map((v, idx) => (
+                        {vendors.map((v, idx) => {
+                            const localizedDesc = getLocalizedVendorField(v, 'description', normLang);
+                            const localizedRules = getLocalizedVendorField(v, 'rules', normLang);
+
+                            return (
                             <div
-                                key={idx}
+                                key={v.vendor_code || idx}
                                 onClick={() => handleVendorClick(v.vendor_code)}
                                 className="bg-white border border-[#E7E5E4] rounded-2xl overflow-hidden cursor-pointer hover:border-[#18181B] transition-colors flex flex-row group items-stretch h-36 md:h-44 relative"
                             >
@@ -101,11 +111,11 @@ export default function VendorListPage({ lang = 'KR' }) {
                                             {v.store_name || v.vendor_code || (normLang === 'TH' ? 'ร้านค้าวินเทจ' : normLang === 'EN' ? 'Vintage Store' : '상호명 미등록')}
                                         </h2>
 
-                                        {v.description ? (
+                                        {localizedDesc ? (
                                             <p className="text-xs md:text-sm text-[#57534E] line-clamp-2 font-medium whitespace-pre-line leading-relaxed">
-                                                {v.description}
+                                                {localizedDesc}
                                             </p>
-                                        ) : !v.rules ? (
+                                        ) : !localizedRules ? (
                                             <p className="text-xs text-[#A8A29E] mt-1">
                                                 {normLang === 'TH'
                                                     ? 'ยังไม่มีคำอธิบายร้านค้า'
@@ -116,9 +126,9 @@ export default function VendorListPage({ lang = 'KR' }) {
                                         ) : null}
                                     </div>
 
-                                    {v.rules && (
+                                    {localizedRules && (
                                         <p className="text-[11px] md:text-xs text-[#78716C] line-clamp-1 pt-2 border-t border-[#F5F5F4] whitespace-pre-line">
-                                            {v.rules}
+                                            {localizedRules}
                                         </p>
                                     )}
 
@@ -129,7 +139,8 @@ export default function VendorListPage({ lang = 'KR' }) {
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

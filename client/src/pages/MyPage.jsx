@@ -13,6 +13,8 @@ import { getTranslation } from '../services/i18n';
 import SalesAnalyticsTab from '../components/SalesAnalyticsTab';
 import AdminThemesTab from '../components/AdminThemesTab';
 import LucianCategoryPills from '../components/LucianCategoryPills';
+import VendorMessengerSettings from '../components/VendorMessengerSettings';
+import { parseVendorContactChannels, normalizeChannelUrl } from '../services/vendorChannels';
 
 /**
  * 내 정보 관리 페이지 (마이페이지)
@@ -1397,8 +1399,19 @@ const MyPage = ({ lang }) => {
         }
     }, [activeTab, user]);
 
-    // --- Vendor Profile State ---
-    const [vendorProfile, setVendorProfile] = useState({ store_name: '', description: '', rules: '', logo_url: '', kakao_url: '' });
+    // --- Vendor Profile State (다국어 소개 + 언어별 다중 연락 플랫폼 지원) ---
+    const [vendorProfile, setVendorProfile] = useState({
+        store_name: '',
+        description: '',
+        description_en: '',
+        description_th: '',
+        rules: '',
+        rules_en: '',
+        rules_th: '',
+        logo_url: '',
+        kakao_url: '',
+        contact_channels: [],
+    });
     const [vendorProfileLoading, setVendorProfileLoading] = useState(false);
     const [vendorLogoFile, setVendorLogoFile] = useState(null);
 
@@ -1407,12 +1420,24 @@ const MyPage = ({ lang }) => {
         try {
             const res = await fetch(`/api/vendor-profiles/${user.login_id}`);
             const data = await res.json();
+            const fallbackKakao = data.kakao_url || formData.kakao_url || '';
+            const initialChannels = parseVendorContactChannels(data.contact_channels, fallbackKakao).map((ch) => ({
+                id: ch.id,
+                lang: ch.lang,
+                platform: ch.platform,
+                url: ch.rawUrl || ch.url,
+            }));
             setVendorProfile({
                 store_name: data.store_name || '',
                 description: data.description || '',
+                description_en: data.description_en || '',
+                description_th: data.description_th || '',
                 rules: data.rules || '',
+                rules_en: data.rules_en || '',
+                rules_th: data.rules_th || '',
                 logo_url: data.logo_url || '',
-                kakao_url: data.kakao_url || formData.kakao_url || ''
+                kakao_url: fallbackKakao,
+                contact_channels: initialChannels,
             });
         } catch (err) {
             console.error('Failed to load vendor profile:', err);
@@ -1425,11 +1450,11 @@ const MyPage = ({ lang }) => {
         try {
             let finalLogoUrl = vendorProfile.logo_url;
             if (vendorLogoFile) {
-                const formData = new FormData();
-                formData.append('image', vendorLogoFile);
+                const uploadForm = new FormData();
+                uploadForm.append('image', vendorLogoFile);
                 const res = await fetch(`/api/vendor-profiles/${user.login_id}/logo`, {
                     method: 'POST',
-                    body: formData
+                    body: uploadForm
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -1437,22 +1462,45 @@ const MyPage = ({ lang }) => {
                 }
             }
 
+            // 입력된 다중 메신저 채널 중 주소가 있는 항목만 정규화하여 저장
+            const cleanedChannels = (Array.isArray(vendorProfile.contact_channels) ? vendorProfile.contact_channels : [])
+                .map((ch, idx) => {
+                    const normalized = normalizeChannelUrl(ch.platform || 'kakaotalk', ch.url || '');
+                    if (!normalized) return null;
+                    return {
+                        id: ch.id || `ch_${idx}_${Date.now()}`,
+                        lang: ch.lang || 'KR',
+                        platform: ch.platform || 'kakaotalk',
+                        url: normalized,
+                    };
+                })
+                .filter(Boolean);
+
+            const firstKakaoUrl =
+                cleanedChannels.find((ch) => ch.platform === 'kakaotalk')?.url ||
+                (cleanedChannels.length === 0 ? (vendorProfile.kakao_url || '').trim() : '');
+
             const res2 = await fetch(`/api/vendor-profiles/${user.login_id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     store_name: vendorProfile.store_name,
                     description: vendorProfile.description,
+                    description_en: vendorProfile.description_en || '',
+                    description_th: vendorProfile.description_th || '',
                     rules: vendorProfile.rules,
+                    rules_en: vendorProfile.rules_en || '',
+                    rules_th: vendorProfile.rules_th || '',
                     logo_url: finalLogoUrl,
-                    kakao_url: (vendorProfile.kakao_url || '').trim()
+                    kakao_url: firstKakaoUrl,
+                    contact_channels: cleanedChannels,
                 })
             });
             
             if (!res2.ok) throw new Error('서버 응답 오류 (상태코드: ' + res2.status + ')');
             
-            setFormData(prev => ({ ...prev, kakao_url: (vendorProfile.kakao_url || '').trim() }));
-            alert('매장 프로필 및 카카오톡 문의 연결 주소가 성공적으로 저장되었습니다!');
+            setFormData(prev => ({ ...prev, kakao_url: firstKakaoUrl }));
+            alert('매장 다국어 프로필 및 상담 연락 플랫폼 설정이 성공적으로 저장되었습니다!');
             setVendorLogoFile(null);
             loadVendorProfile();
         } catch (err) {
@@ -1964,19 +2012,32 @@ const MyPage = ({ lang }) => {
                     </div>
 
                     {isVendor && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                                <span className="text-[#371D1E] text-xs bg-[#FEE500] rounded-full w-5 h-5 flex items-center justify-center font-black">K</span>
-                                카카오톡 오픈채팅 / 상담 주소 (상품 문의 연결용)
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.kakao_url}
-                                onChange={(e) => setFormData(prev => ({ ...prev, kakao_url: e.target.value }))}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#FEE500]"
-                                placeholder="https://open.kakao.com/o/..."
-                            />
-                            <p className="mt-1 text-[12px] text-gray-500">본인이 업로드한 상품 상세페이지에서 고객이 [카카오톡 문의] 클릭 시 자동 연결될 본인 카카오톡 채팅 주소입니다.</p>
+                        <div className="space-y-2.5">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                    <span className="text-[#371D1E] text-xs bg-[#FEE500] rounded-full w-5 h-5 flex items-center justify-center font-black">K</span>
+                                    기본 카카오톡 상담 주소 (상품 문의 연결용)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.kakao_url}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, kakao_url: e.target.value }))}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#FEE500]"
+                                    placeholder="https://open.kakao.com/o/..."
+                                />
+                            </div>
+                            <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E7E5E4] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <p className="text-xs text-gray-700 leading-relaxed">
+                                    💡 <b>태국어(페이스북 메신저·LINE) / 영어(Instagram·WhatsApp)</b> 등 언어별 다중 상담 채널과 다국어 매장 소개는 <b>[매장 프로필 관리]</b>에서 설정하실 수 있습니다.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('vendor_profile')}
+                                    className="shrink-0 px-3.5 py-2 rounded-lg bg-black text-white text-xs font-bold hover:bg-gray-800 transition-colors"
+                                >
+                                    🏪 다중 메신저 설정하기 →
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -3928,43 +3989,13 @@ const MyPage = ({ lang }) => {
                                         placeholder="예: 드림스튜디오 빈티지"
                                     />
                                 </div>
-                                <div className="p-4 rounded-2xl bg-[#FEE500]/15 border border-[#FEE500]">
-                                    <label className="block text-sm font-black text-gray-900 mb-2 flex items-center gap-2">
-                                        <span className="w-6 h-6 rounded-full bg-[#FEE500] text-[#371D1E] text-xs font-black flex items-center justify-center shadow-xs">K</span>
-                                        카카오톡 오픈채팅 / 상담 주소 (상품 상세 문의 연결)
-                                    </label>
-                                    <input 
-                                        type="text"
-                                        value={vendorProfile.kakao_url || ''}
-                                        onChange={e => setVendorProfile({ ...vendorProfile, kakao_url: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all text-sm font-medium"
-                                        placeholder="예: https://open.kakao.com/o/sXXXXXXX"
-                                    />
-                                    <p className="mt-2 text-xs text-gray-600 leading-relaxed">
-                                        💡 고객이 사장님의 상품 상세페이지에서 <b>[카카오톡 문의]</b> 버튼을 누르면 이 주소의 카카오톡 방으로 즉시 연결되며, <b>어떤 상품 링크에서 문의했는지(상품명·코드·가격·상품링크)</b>가 자동으로 완성되어 복사됩니다.
-                                    </p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-900 mb-2">매장 소개</label>
-                                    <textarea 
-                                        value={vendorProfile.description}
-                                        onChange={e => setVendorProfile({ ...vendorProfile, description: e.target.value })}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all h-32 resize-none text-sm"
-                                        placeholder="고객들에게 보여질 매장의 특징이나 인사말을 적어주세요."
-                                    ></textarea>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-900 mb-2">매장 규칙 (교환/환불 등)</label>
-                                    <textarea 
-                                        value={vendorProfile.rules}
-                                        onChange={e => setVendorProfile({ ...vendorProfile, rules: e.target.value })}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all h-32 resize-none text-sm"
-                                        placeholder="매장 자체적인 배송비, 교환/환불 정책 등을 안내할 수 있습니다."
-                                    ></textarea>
-                                </div>
+                                <VendorMessengerSettings
+                                    vendorProfile={vendorProfile}
+                                    setVendorProfile={setVendorProfile}
+                                />
                                 <div>
                                     <button type="submit" className="px-6 py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition-colors">
-                                        저장하기
+                                        매장 프로필 & 상담 메신저 저장하기
                                     </button>
                                 </div>
                             </form>

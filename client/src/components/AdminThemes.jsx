@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { getTranslation } from '../services/i18n';
+import { useState, useEffect } from 'react';
 
-const AdminThemes = ({ lang }) => {
+// DB에 아직 특정 카테고리의 상품이 0개인 초기 상태에서도 관리자가 미리 테마를 세팅할 수 있도록 표준 소분류 폴백 제공
+const DEFAULT_SUBCATEGORY_MAP = {
+    상의: ['반팔 티셔츠', '긴팔 티셔츠', '맨투맨 / 스웨트셔츠', '후드티 / 스웨트셔츠', '셔츠/남방', '니트 / 스웨터', '카라티/폴로', '유니폼/져지', '민소매/슬리브리스'],
+    아우터: ['바람막이 / 윈드브레이커', '자켓 / 점퍼', '가디건', '패딩 / 다운자켓', '코트', '플리스/집업', '베스트/조끼'],
+    하의: ['데님/청바지', '면바지/치노', '트레이닝팬츠/스웨트팬츠', '슬랙스', '카고팬츠', '반바지/쇼츠', '스커트'],
+    원피스: ['미니 원피스', '롱 원피스', '점프수트/투피스'],
+    신발: ['스니커즈', '부츠/워커', '구두/로퍼', '샌들/슬리퍼'],
+    가방: ['백팩', '크로스백', '숄더백', '토트백', '에코백/파우치'],
+    모자: ['캡', '비니', '버킷햇'],
+    액세서리: ['벨트', '머플러/스카프', '넥타이', '지갑/잡화'],
+};
+
+const AdminThemes = () => {
     const [themes, setThemes] = useState([]);
-    const [filters, setFilters] = useState({ brands: [], upperCategories: [], categories: [] });
+    const [filters, setFilters] = useState({ brands: [], upperCategories: [], categories: [], categoryMap: {} });
+    const [categorySearch, setCategorySearch] = useState('');
+    const [brandSearch, setBrandSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     
@@ -139,11 +152,12 @@ const AdminThemes = ({ lang }) => {
             if (themesRes.success) {
                 setThemes(themesRes.themes);
             }
-            if (filtersRes) {
+            if (filtersRes && !filtersRes.error) {
                 setFilters({
-                    brands: filtersRes.brands || [],
-                    upperCategories: filtersRes.upperCategories || [],
-                    categories: filtersRes.categories || []
+                    brands: Array.isArray(filtersRes.brands) ? filtersRes.brands : [],
+                    upperCategories: Array.isArray(filtersRes.upperCategories) ? filtersRes.upperCategories : [],
+                    categories: Array.isArray(filtersRes.categories) ? filtersRes.categories : [],
+                    categoryMap: filtersRes.categoryMap && typeof filtersRes.categoryMap === 'object' ? filtersRes.categoryMap : {},
                 });
             }
         } catch (err) {
@@ -394,7 +408,7 @@ const AdminThemes = ({ lang }) => {
                     alert('이미지 업로드 실패: ' + uploadResult.message);
                     setIsIconicUploading(false); return;
                 }
-            } catch (err) {
+            } catch {
                 alert('이미지 업로드 오류 발생');
                 setIsIconicUploading(false); return;
             }
@@ -430,7 +444,7 @@ const AdminThemes = ({ lang }) => {
             } else {
                 alert(`${editingIconicId ? '수정' : '생성'} 실패: ` + data.message);
             }
-        } catch (err) {
+        } catch {
             alert(`${editingIconicId ? '수정' : '생성'} 중 오류가 발생했습니다.`);
         } finally {
             setIsIconicUploading(false);
@@ -473,7 +487,7 @@ const AdminThemes = ({ lang }) => {
             if (data.success) {
                 alert('섹션 노출 순서가 저장되었습니다.');
             }
-        } catch (err) {
+        } catch {
             alert('설정 저장 중 오류가 발생했습니다.');
         }
     };
@@ -489,7 +503,7 @@ const AdminThemes = ({ lang }) => {
             } else {
                 alert('삭제 실패: ' + data.message);
             }
-        } catch (err) {
+        } catch {
             alert('삭제 중 오류가 발생했습니다.');
         }
     };
@@ -916,37 +930,195 @@ const AdminThemes = ({ lang }) => {
 
                     {/* 소분류 선택 */}
                     <div>
-                        <label className="block text-gray-700 font-bold mb-1">하위 카테고리 (다중 선택 가능)</label>
-                        <div className="max-h-40 overflow-y-auto border border-gray-200 rounded p-2 flex flex-wrap gap-2 bg-gray-50">
-                            {filters.categories.map(c => (
-                                <label key={c} className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-100">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={formData.filter_category.includes(c)}
-                                        onChange={() => handleCheckToggle('filter_category', c)}
-                                        className="accent-black"
-                                    />
-                                    <span>{c}</span>
-                                </label>
-                            ))}
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                            <label className="block text-gray-700 font-bold">
+                                하위 카테고리 (다중 선택 가능)
+                                {formData.filter_category.length > 0 && (
+                                    <span className="ml-2 text-xs text-blue-600 font-extrabold">
+                                        {formData.filter_category.length}개 선택됨
+                                    </span>
+                                )}
+                            </label>
+                            {formData.filter_category.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData((prev) => ({ ...prev, filter_category: [] }))}
+                                    className="text-xs text-gray-500 hover:text-black underline"
+                                >
+                                    선택 초기화
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                            <input
+                                type="text"
+                                value={categorySearch}
+                                onChange={(e) => setCategorySearch(e.target.value)}
+                                placeholder="하위 카테고리 검색 또는 직접 입력..."
+                                className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-xs outline-none focus:border-black"
+                            />
+                            {categorySearch.trim() && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const val = categorySearch.trim();
+                                        if (!formData.filter_category.includes(val)) {
+                                            handleCheckToggle('filter_category', val);
+                                        }
+                                        setCategorySearch('');
+                                    }}
+                                    className="px-3 py-1.5 bg-gray-900 text-white rounded text-xs font-bold hover:bg-black shrink-0"
+                                >
+                                    + 직접 추가
+                                </button>
+                            )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded p-2.5 flex flex-wrap gap-2 bg-gray-50">
+                            {(() => {
+                                // 상위 카테고리가 선택되어 있으면 해당 상위 카테고리의 하위 목록을 우선 노출하되,
+                                // DB 실데이터(filters.categoryMap)와 표준 소분류(DEFAULT_SUBCATEGORY_MAP), 이미 체크된 항목을 모두 병합
+                                const selectedUppers = formData.filter_upper_category || [];
+                                const candidateSet = new Set(formData.filter_category || []);
+
+                                if (selectedUppers.length > 0) {
+                                    selectedUppers.forEach((up) => {
+                                        (filters.categoryMap?.[up] || []).forEach((c) => candidateSet.add(c));
+                                        (DEFAULT_SUBCATEGORY_MAP[up] || []).forEach((c) => candidateSet.add(c));
+                                    });
+                                } else {
+                                    (filters.categories || []).forEach((c) => candidateSet.add(c));
+                                    // DB에 아직 상품이 거의 없을 때도 기본 하위 카테고리 선택지를 보장
+                                    if (candidateSet.size === 0) {
+                                        Object.values(DEFAULT_SUBCATEGORY_MAP).flat().forEach((c) => candidateSet.add(c));
+                                    }
+                                }
+
+                                const keyword = categorySearch.trim().toLowerCase();
+                                const visibleCategories = Array.from(candidateSet).filter((c) =>
+                                    !keyword || c.toLowerCase().includes(keyword)
+                                );
+
+                                if (visibleCategories.length === 0) {
+                                    return (
+                                        <span className="text-xs text-gray-400 py-1">
+                                            검색 결과가 없습니다. 우측 [+ 직접 추가] 버튼으로 바로 등록할 수 있습니다.
+                                        </span>
+                                    );
+                                }
+
+                                return visibleCategories.map((c) => {
+                                    const checked = formData.filter_category.includes(c);
+                                    return (
+                                        <label
+                                            key={c}
+                                            className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
+                                                checked
+                                                    ? 'bg-black text-white border-black font-bold'
+                                                    : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => handleCheckToggle('filter_category', c)}
+                                                className="accent-black"
+                                            />
+                                            <span>{c}</span>
+                                        </label>
+                                    );
+                                });
+                            })()}
                         </div>
                     </div>
 
                     {/* 브랜드 선택 */}
                     <div>
-                        <label className="block text-gray-700 font-bold mb-1">브랜드 (다중 선택 가능)</label>
-                        <div className="max-h-40 overflow-y-auto border border-gray-200 rounded p-2 flex flex-wrap gap-2 bg-gray-50">
-                            {filters.brands.map(b => (
-                                <label key={b} className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-100">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={formData.filter_brand.includes(b)}
-                                        onChange={() => handleCheckToggle('filter_brand', b)}
-                                        className="accent-black"
-                                    />
-                                    <span>{b}</span>
-                                </label>
-                            ))}
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                            <label className="block text-gray-700 font-bold">
+                                브랜드 (다중 선택 가능)
+                                {formData.filter_brand.length > 0 && (
+                                    <span className="ml-2 text-xs text-blue-600 font-extrabold">
+                                        {formData.filter_brand.length}개 선택됨
+                                    </span>
+                                )}
+                            </label>
+                            {formData.filter_brand.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData((prev) => ({ ...prev, filter_brand: [] }))}
+                                    className="text-xs text-gray-500 hover:text-black underline"
+                                >
+                                    선택 초기화
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                            <input
+                                type="text"
+                                value={brandSearch}
+                                onChange={(e) => setBrandSearch(e.target.value)}
+                                placeholder="브랜드명 검색 (예: Nike, Adidas, Umbro, Stussy) 또는 직접 입력..."
+                                className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-xs outline-none focus:border-black"
+                            />
+                            {brandSearch.trim() && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const val = brandSearch.trim();
+                                        if (!formData.filter_brand.includes(val)) {
+                                            handleCheckToggle('filter_brand', val);
+                                        }
+                                        setBrandSearch('');
+                                    }}
+                                    className="px-3 py-1.5 bg-gray-900 text-white rounded text-xs font-bold hover:bg-black shrink-0"
+                                >
+                                    + 직접 추가
+                                </button>
+                            )}
+                        </div>
+                        <div className="max-h-52 overflow-y-auto border border-gray-200 rounded p-2.5 flex flex-wrap gap-2 bg-gray-50">
+                            {(() => {
+                                const brandSet = new Set([
+                                    ...(formData.filter_brand || []),
+                                    ...(filters.brands || []),
+                                ]);
+                                const keyword = brandSearch.trim().toLowerCase();
+                                const visibleBrands = Array.from(brandSet).filter((b) =>
+                                    !keyword || b.toLowerCase().includes(keyword)
+                                );
+
+                                if (visibleBrands.length === 0) {
+                                    return (
+                                        <span className="text-xs text-gray-400 py-1">
+                                            {filters.brands.length === 0
+                                                ? '현재 등록된 상품 브랜드가 없습니다. 브랜드명을 입력 후 [+ 직접 추가]를 눌러 미리 지정할 수 있습니다.'
+                                                : '일치하는 브랜드가 없습니다. [+ 직접 추가]로 바로 선택할 수 있습니다.'}
+                                        </span>
+                                    );
+                                }
+
+                                return visibleBrands.map((b) => {
+                                    const checked = formData.filter_brand.includes(b);
+                                    return (
+                                        <label
+                                            key={b}
+                                            className={`flex items-center gap-1.5 border px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
+                                                checked
+                                                    ? 'bg-black text-white border-black font-bold'
+                                                    : 'bg-white border-gray-200 text-gray-800 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => handleCheckToggle('filter_brand', b)}
+                                                className="accent-black"
+                                            />
+                                            <span>{b}</span>
+                                        </label>
+                                    );
+                                });
+                            })()}
                         </div>
                     </div>
 

@@ -765,6 +765,137 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
+/**
+ * 상위 카테고리 명칭을 홈페이지 표준 8대 상위 카테고리로 정규화합니다.
+ * 왜 필요한가: 시트나 밴드어드민에서 '악세사리', '패션잡화', 'Tops' 등 다양한 표기가 들어와도
+ * 관리자 추천 테마 관리 및 카탈로그 필터 버튼과 100% 일치시키기 위함입니다.
+ */
+function normalizeUpperCategoryName(rawUpper) {
+    const val = String(rawUpper || '').trim();
+    if (!val) return '';
+    const lower = val.toLowerCase();
+    if (['상의', '탑', 'tops', 'top'].includes(lower)) return '상의';
+    if (['아우터', '자켓/아우터', 'outerwear', 'outer'].includes(lower)) return '아우터';
+    if (['하의', '팬츠', '바지', 'bottoms', 'bottom'].includes(lower)) return '하의';
+    if (['원피스', '스커트/원피스', 'dresses', 'dress'].includes(lower)) return '원피스';
+    if (['신발', '슈즈', 'shoes', 'shoe'].includes(lower)) return '신발';
+    if (['가방', '백', 'bags', 'bag'].includes(lower)) return '가방';
+    if (['모자', '헤드웨어', 'hats', 'hat', 'cap'].includes(lower)) return '모자';
+    if (['액세서리', '악세사리', '패션잡화', '잡화', '기타', 'accessories', 'accessory', 'others'].includes(lower)) {
+        return '액세서리';
+    }
+    return val;
+}
+
+/**
+ * 시트 M열 카테고리 문자열('상의 > 맨투맨/스웨트셔츠', '남성 > 상의 > 반팔티', 또는 단독 소분류명)에서
+ * upper_category와 category(하위 카테고리)를 안전하게 분리·추론합니다.
+ *
+ * 왜 필요한가:
+ * 기존 JS 동기화(syncData)가 M열 원문을 category 한 곳에만 넣고 upper_category를 비워두어
+ * /api/filters 조회 오류 및 추천 테마 필터 매칭 누락이 발생했기 때문입니다.
+ */
+function splitAndInferCategory(rawCat) {
+    const cleaned = String(rawCat || '').trim();
+    if (!cleaned || cleaned.toLowerCase() === 'nan') {
+        return { upper_category: '', category: '' };
+    }
+
+    // 1) '>' 구분자가 포함된 계층형 카테고리 처리 (예: '상의 > 반팔 티셔츠' 또는 '남성 > 상의 > 반팔티')
+    if (cleaned.includes('>')) {
+        let parts = cleaned.split('>').map((s) => s.trim()).filter(Boolean);
+        const genderTokens = ['남성', '여성', '공용', '남녀공용', 'men', 'women', 'unisex'];
+        if (parts.length >= 2 && genderTokens.includes(parts[0].toLowerCase())) {
+            parts = parts.slice(1);
+        }
+        if (parts.length >= 2) {
+            return {
+                upper_category: normalizeUpperCategoryName(parts[0]),
+                category: parts.slice(1).join(' / ').trim(),
+            };
+        }
+        if (parts.length === 1) {
+            return splitAndInferCategory(parts[0]);
+        }
+    }
+
+    // 2) 단독 상위 카테고리명만 적혀 있는 경우
+    const exactUpper = normalizeUpperCategoryName(cleaned);
+    const standardUppers = ['상의', '아우터', '하의', '원피스', '신발', '가방', '모자', '액세서리'];
+    if (standardUppers.includes(exactUpper) && exactUpper === cleaned) {
+        return { upper_category: exactUpper, category: exactUpper };
+    }
+    if (['악세사리', '패션잡화', '잡화', '기타'].includes(cleaned)) {
+        return { upper_category: '액세서리', category: cleaned };
+    }
+
+    // 3) 단독 하위 카테고리명(예: '맨투맨/스웨트셔츠', '반팔 티셔츠', '데님/청바지')에서 상위 카테고리 추론
+    const lower = cleaned.toLowerCase();
+    if (/원피스|투피스|점프수트|드레스|dress/.test(lower)) {
+        return { upper_category: '원피스', category: cleaned };
+    }
+    if (/스니커즈|운동화|부츠|구두|로퍼|샌들|슬리퍼|워커|플랫|힐|신발|슈즈|shoe|sneaker|boot/.test(lower)) {
+        return { upper_category: '신발', category: cleaned };
+    }
+    if (/백팩|크로스백|숄더백|토트백|클러치|파우치|에코백|메신저백|보스턴백|가방|bag|backpack/.test(lower)) {
+        return { upper_category: '가방', category: cleaned };
+    }
+    if (/볼캡|버킷햇|비니|헌팅캡|베레모|스냅백|모자|캡|hat|cap|beanie/.test(lower)) {
+        return { upper_category: '모자', category: cleaned };
+    }
+    if (/바람막이|윈드브레이커|자켓|재킷|점퍼|코트|패딩|다운|플리스|후리스|가디건|블루종|야상|트렌치|무스탕|베스트|조끼|집업|아노락|아우터|jacket|coat|outer|cardigan|vest|fleece|parka/.test(lower)) {
+        return { upper_category: '아우터', category: cleaned };
+    }
+    if (/데님|청바지|팬츠|바지|슬랙스|치노|면바지|쇼츠|반바지|트레이닝|스웨트팬츠|조거|카고|레깅스|스커트|치마|하의|pants|jeans|denim|shorts|skirt/.test(lower)) {
+        return { upper_category: '하의', category: cleaned };
+    }
+    if (/티셔츠|반팔|긴팔|맨투맨|스웨트셔츠|후드|셔츠|남방|블라우스|니트|스웨터|카라티|폴로|민소매|나시|슬리브리스|유니폼|져지|저지|탑|상의|shirt|hoodie|sweat|knit|sweater|tee|top|jersey/.test(lower)) {
+        return { upper_category: '상의', category: cleaned };
+    }
+
+    return { upper_category: '액세서리', category: cleaned };
+}
+
+/**
+ * 서버 기동 시 기존 DB에 저장된 상품 중 upper_category가 비어 있거나
+ * category에 '>' 구분자가 남아 있는 행을 즉시 보정합니다.
+ * 왜 필요한가: 재동기화(/api/sync)를 기다리지 않고도 서버 재시작 즉시 추천 테마 관리의
+ * 하위 카테고리 및 브랜드 목록이 정상 노출되도록 하기 위함입니다.
+ */
+function backfillProductCategories() {
+    db.all(
+        `SELECT code, upper_category, category FROM products 
+         WHERE (upper_category IS NULL OR TRIM(upper_category) = '') 
+            OR category LIKE '%>%'`,
+        [],
+        (err, rows) => {
+            if (err || !rows || rows.length === 0) return;
+            db.serialize(() => {
+                db.run('BEGIN TRANSACTION');
+                const stmt = db.prepare(
+                    'UPDATE products SET upper_category = ?, category = ? WHERE code = ?'
+                );
+                let updated = 0;
+                rows.forEach((r) => {
+                    const parsed = splitAndInferCategory(r.category || r.upper_category || '');
+                    const nextUpper = parsed.upper_category || r.upper_category || '';
+                    const nextCat = parsed.category || r.category || '';
+                    if (nextUpper !== (r.upper_category || '') || nextCat !== (r.category || '')) {
+                        stmt.run(nextUpper, nextCat, r.code);
+                        updated += 1;
+                    }
+                });
+                stmt.finalize();
+                db.run('COMMIT', (commitErr) => {
+                    if (!commitErr && updated > 0) {
+                        console.log(`[DB] Backfilled upper_category/category for ${updated} existing products.`);
+                    }
+                });
+            });
+        }
+    );
+}
+
 // =============================================
 // 고객(회원) 테이블 자동 생성
 // 서버 시작 시 테이블이 없으면 자동으로 만들어줌
@@ -778,9 +909,11 @@ db.serialize(() => {
             vendor_code TEXT DEFAULT '',
             updated_at TEXT,
             stock TEXT,
+            gender TEXT DEFAULT '',
             price TEXT,
             original_price TEXT,
             brand TEXT,
+            upper_category TEXT DEFAULT '',
             category TEXT,
             name TEXT,
             size TEXT,
@@ -802,7 +935,14 @@ db.serialize(() => {
             synced_to_sheet BOOLEAN DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now', 'localtime'))
         )
-    `);
+    `, () => {
+        // 기존 운영 DB에 누락되어 있던 gender, upper_category 컬럼을 무중단으로 추가 후 즉시 백필
+        db.run("ALTER TABLE products ADD COLUMN vendor_code TEXT DEFAULT ''", () => {});
+        db.run("ALTER TABLE products ADD COLUMN gender TEXT DEFAULT ''", () => {});
+        db.run("ALTER TABLE products ADD COLUMN upper_category TEXT DEFAULT ''", () => {
+            backfillProductCategories();
+        });
+    });
 
     // 1. 고객(회원) 테이블
     db.run(`
@@ -1045,16 +1185,27 @@ db.serialize(() => {
                             CREATE TABLE IF NOT EXISTS vendor_profiles (
                                 vendor_code TEXT PRIMARY KEY,
                                 store_name TEXT DEFAULT '',
-                                description TEXT,
-                                rules TEXT,
+                                description TEXT DEFAULT '',
+                                description_en TEXT DEFAULT '',
+                                description_th TEXT DEFAULT '',
+                                rules TEXT DEFAULT '',
+                                rules_en TEXT DEFAULT '',
+                                rules_th TEXT DEFAULT '',
                                 logo_url TEXT,
                                 kakao_url TEXT DEFAULT '',
+                                contact_channels TEXT DEFAULT '[]',
                                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
                             )
                         `, (err) => {
                             if (err) console.error('[DB] vendor_profiles 에러:', err.message);
+                            // 다국어 매장 소개(EN/TH) 및 다중 메신저 채널(contact_channels) 컬럼 무중단 추가
                             db.run("ALTER TABLE vendor_profiles ADD COLUMN kakao_url TEXT DEFAULT ''", () => {});
+                            db.run("ALTER TABLE vendor_profiles ADD COLUMN description_en TEXT DEFAULT ''", () => {});
+                            db.run("ALTER TABLE vendor_profiles ADD COLUMN description_th TEXT DEFAULT ''", () => {});
+                            db.run("ALTER TABLE vendor_profiles ADD COLUMN rules_en TEXT DEFAULT ''", () => {});
+                            db.run("ALTER TABLE vendor_profiles ADD COLUMN rules_th TEXT DEFAULT ''", () => {});
+                            db.run("ALTER TABLE vendor_profiles ADD COLUMN contact_channels TEXT DEFAULT '[]'", () => {});
                         });
                     });
 
@@ -1534,9 +1685,13 @@ const syncData = async () => {
             return { success: true, message: 'Cleared all products' };
         }
 
-        // SQLite에 vendor_code 컬럼 안전 추가 (이미 있으면 에러 무시됨)
+        // SQLite에 필수 컬럼(vendor_code, gender, upper_category) 안전 추가 (이미 있으면 에러 무시됨)
         await new Promise((resolve) => {
-            db.run("ALTER TABLE products ADD COLUMN vendor_code TEXT DEFAULT ''", () => resolve());
+            db.serialize(() => {
+                db.run("ALTER TABLE products ADD COLUMN vendor_code TEXT DEFAULT ''", () => {});
+                db.run("ALTER TABLE products ADD COLUMN gender TEXT DEFAULT ''", () => {});
+                db.run("ALTER TABLE products ADD COLUMN upper_category TEXT DEFAULT ''", () => resolve());
+            });
         });
 
         return new Promise((resolve, reject) => {
@@ -1546,11 +1701,11 @@ const syncData = async () => {
                 
                 const stmt = db.prepare(`
                     INSERT OR REPLACE INTO products (
-                        code, vendor_code, updated_at, stock, price, original_price, brand, 
-                        category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
+                        code, vendor_code, updated_at, stock, gender, price, original_price, brand, 
+                        upper_category, category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
                         hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th,
                         product_images
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
                 
                 rows.forEach(row => {
@@ -1562,6 +1717,7 @@ const syncData = async () => {
                     const vendor_code = getCell(1); // B열: 관리코드 (여기에 사장님 아이디가 박힘!)
                     const updated_at = getCell(2);
                     const stock = getCell(5);
+                    const gender = getCell(6); // G열: 성별 (남성/여성/공용)
                     const original_price = getCell(7);
                     // 왜 J열(9, 판매가)을 I열(8, 시작가)보다 우선하는가:
                     // 밴드어드민에서 가격을 수정하면 J열(판매가/낙찰가)이 갱신되므로, I열(초기 시작가)이 남아있더라도
@@ -1569,7 +1725,10 @@ const syncData = async () => {
                     const price = getCell(9) || getCell(8) || getCell(7);
                     
                     const brand = getCell(10);
-                    const category = getCell(12);
+                    // 왜 splitAndInferCategory를 거치는가:
+                    // M열 카테고리('상의 > 맨투맨/스웨트셔츠' 등)에서 상위 카테고리와 하위 카테고리를 분리해야
+                    // 추천 테마 관리 및 카탈로그 카테고리 필터가 정상 동작하기 때문입니다.
+                    const { upper_category, category } = splitAndInferCategory(getCell(12));
                     const name = getCell(13);
                     const size = getCell(14);
                     const actual_size = getCell(15);
@@ -1638,8 +1797,8 @@ const syncData = async () => {
                     }
 
                     stmt.run(
-                        code, vendor_code, updated_at, stock, price, original_price, brand,
-                        category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
+                        code, vendor_code, updated_at, stock, gender, price, original_price, brand,
+                        upper_category, category, name, size, actual_size, description, image_url, nukki_url, thumbnail_url,
                         hashtags, style, arrival_date, u, season, name_en, name_th, description_en, description_th,
                         product_images
                     );
@@ -1795,10 +1954,24 @@ app.get('/api/debug-sync-log', (req, res) => {
 });
 
 // GET /api/vendors
+// 왜 WHERE IFNULL(p.cnt, 0) > 0 조건을 추가하는가:
+// 상품을 아직 1개도 업로드하지 않은 빈 매장('상품 0개')이 편집샵 목록에 노출되어
+// 고객이 클릭했을 때 빈 화면을 마주하는 불편을 방지하기 위함입니다. (관리자 매장 관리는 /api/admin/vendors 별도 API 사용)
 app.get('/api/vendors', async (req, res) => {
     try {
         const query = `
-            SELECT v.vendor_code, IFNULL(p.cnt, 0) as cnt, vp.store_name, vp.logo_url, vp.description, vp.rules, vp.kakao_url
+            SELECT v.vendor_code,
+                   IFNULL(p.cnt, 0) as cnt,
+                   vp.store_name,
+                   vp.logo_url,
+                   vp.description,
+                   vp.description_en,
+                   vp.description_th,
+                   vp.rules,
+                   vp.rules_en,
+                   vp.rules_th,
+                   vp.kakao_url,
+                   vp.contact_channels
             FROM (
                 SELECT vendor_code FROM vendor_profiles
                 UNION
@@ -1811,6 +1984,7 @@ app.get('/api/vendors', async (req, res) => {
                 GROUP BY vendor_code
             ) p ON v.vendor_code = p.vendor_code
             LEFT JOIN vendor_profiles vp ON v.vendor_code = vp.vendor_code
+            WHERE IFNULL(p.cnt, 0) > 0
             ORDER BY cnt DESC
         `;
         db.all(query, [], (err, rows) => {
@@ -1906,6 +2080,20 @@ setTimeout(() => {
     migrateAllVendorProfileKeys().catch(err => console.error('[VendorProfile] 시작 시 정리 실패:', err));
 }, 15000);
 
+/**
+ * DB에 저장된 contact_channels 컬럼(JSON 문자열 또는 배열)을 안전하게 배열로 파싱합니다.
+ */
+function parseContactChannelsSafe(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string' && raw.trim()) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+        } catch (e) { /* 잘못된 JSON 문자열은 빈 배열로 안전 복구 */ }
+    }
+    return [];
+}
+
 // GET /api/vendor-profiles/:vendor_code
 app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
     const requestedCode = req.params.vendor_code;
@@ -1915,25 +2103,64 @@ app.get('/api/vendor-profiles/:vendor_code', (req, res) => {
             vendor_code = cust.bandadmin_id;
         }
         const fallbackKakao = cust?.kakao_url || '';
+        const formatVendorProfileRow = (targetRow) => {
+            const base = targetRow || {
+                vendor_code,
+                store_name: '',
+                description: '',
+                description_en: '',
+                description_th: '',
+                rules: '',
+                rules_en: '',
+                rules_th: '',
+                logo_url: '',
+                kakao_url: '',
+                contact_channels: '[]',
+            };
+            return {
+                ...base,
+                vendor_code,
+                description_en: base.description_en || '',
+                description_th: base.description_th || '',
+                rules_en: base.rules_en || '',
+                rules_th: base.rules_th || '',
+                kakao_url: base.kakao_url || fallbackKakao,
+                contact_channels: parseContactChannelsSafe(base.contact_channels),
+            };
+        };
+
         db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
             if (row || vendor_code === requestedCode) {
-                const base = row || { vendor_code, store_name: '', description: '', rules: '', logo_url: '', kakao_url: '' };
-                return res.json({ ...base, kakao_url: base.kakao_url || fallbackKakao });
+                return res.json(formatVendorProfileRow(row));
             }
             // 안전장치: 아직 이동되지 않은(연결 전에 저장된) 카카오ID 키 프로필을 한 번 더 찾아본다
             db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [requestedCode], (err2, oldRow) => {
-                if (!err2 && oldRow) return res.json({ ...oldRow, vendor_code, kakao_url: oldRow.kakao_url || fallbackKakao });
-                res.json({ vendor_code, store_name: '', description: '', rules: '', logo_url: '', kakao_url: fallbackKakao });
+                if (!err2 && oldRow) return res.json(formatVendorProfileRow(oldRow));
+                res.json(formatVendorProfileRow(null));
             });
         });
     });
 });
 
 // PUT /api/vendor-profiles/:vendor_code
+// 왜 모든 신규 컬럼에 대해 undefined 체크(기존 값 보존)를 수행하는가:
+// 밴드어드민 데스크톱 앱에서 상품을 업로드할 때 { kakao_url } 필드만 담아 PUT 요청을 보내므로,
+// 요청에 포함되지 않은 다국어 소개(description_en/th)나 다중 메신저 설정(contact_channels)이 절대 초기화되지 않도록 보호하기 위함입니다.
 app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
     let { vendor_code } = req.params;
-    const { store_name, description, rules, logo_url, kakao_url } = req.body;
+    const {
+        store_name,
+        description,
+        description_en,
+        description_th,
+        rules,
+        rules_en,
+        rules_th,
+        logo_url,
+        kakao_url,
+        contact_channels,
+    } = req.body;
     db.get('SELECT bandadmin_id, kakao_url as cust_kakao_url FROM customers WHERE LOWER(login_id) = LOWER(?) OR LOWER(bandadmin_id) = LOWER(?)', [vendor_code, vendor_code], (err, cust) => {
         if (!err && cust && cust.bandadmin_id && cust.bandadmin_id !== '-') {
             vendor_code = cust.bandadmin_id;
@@ -1941,30 +2168,84 @@ app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
         db.get('SELECT * FROM vendor_profiles WHERE vendor_code = ?', [vendor_code], (err2, existing) => {
             const nextStoreName = store_name !== undefined ? store_name : (existing?.store_name || '');
             const nextDesc = description !== undefined ? description : (existing?.description || '');
+            const nextDescEn = description_en !== undefined ? description_en : (existing?.description_en || '');
+            const nextDescTh = description_th !== undefined ? description_th : (existing?.description_th || '');
             const nextRules = rules !== undefined ? rules : (existing?.rules || '');
+            const nextRulesEn = rules_en !== undefined ? rules_en : (existing?.rules_en || '');
+            const nextRulesTh = rules_th !== undefined ? rules_th : (existing?.rules_th || '');
             const nextLogo = logo_url !== undefined ? logo_url : (existing?.logo_url || '');
-            const nextKakao = kakao_url !== undefined ? String(kakao_url || '').trim() : (existing?.kakao_url || cust?.cust_kakao_url || '');
+
+            let nextChannelsArr = parseContactChannelsSafe(existing?.contact_channels);
+            if (contact_channels !== undefined) {
+                nextChannelsArr = parseContactChannelsSafe(contact_channels)
+                    .filter((ch) => ch && typeof ch === 'object' && String(ch.url || '').trim() !== '')
+                    .map((ch, idx) => ({
+                        id: String(ch.id || `ch_${idx}_${Date.now()}`),
+                        lang: ['KR', 'EN', 'TH'].includes(String(ch.lang || '').toUpperCase())
+                            ? String(ch.lang).toUpperCase()
+                            : 'KR',
+                        platform: String(ch.platform || 'kakaotalk').toLowerCase(),
+                        url: String(ch.url || '').trim(),
+                    }));
+            }
+            const nextChannelsJson = JSON.stringify(nextChannelsArr);
+
+            // 다중 채널 중 카카오톡 채널이 있으면 기존 단일 kakao_url 컬럼과도 하위 호환 동기화
+            const firstKakaoFromChannels = nextChannelsArr.find(
+                (ch) => ch.platform === 'kakaotalk' && String(ch.url || '').trim()
+            )?.url;
+
+            const nextKakao = kakao_url !== undefined
+                ? String(kakao_url || '').trim()
+                : (firstKakaoFromChannels !== undefined && contact_channels !== undefined
+                    ? firstKakaoFromChannels
+                    : (existing?.kakao_url || cust?.cust_kakao_url || ''));
 
             db.run(`
-                INSERT INTO vendor_profiles (vendor_code, store_name, description, rules, logo_url, kakao_url, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+                INSERT INTO vendor_profiles (
+                    vendor_code, store_name, description, description_en, description_th,
+                    rules, rules_en, rules_th, logo_url, kakao_url, contact_channels, updated_at
+                ) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
                 ON CONFLICT(vendor_code) DO UPDATE SET 
                     store_name = excluded.store_name,
                     description = excluded.description,
+                    description_en = excluded.description_en,
+                    description_th = excluded.description_th,
                     rules = excluded.rules,
+                    rules_en = excluded.rules_en,
+                    rules_th = excluded.rules_th,
                     logo_url = excluded.logo_url,
                     kakao_url = excluded.kakao_url,
+                    contact_channels = excluded.contact_channels,
                     updated_at = datetime('now', 'localtime')
-            `, [vendor_code, nextStoreName, nextDesc, nextRules, nextLogo, nextKakao], function(err3) {
+            `, [
+                vendor_code,
+                nextStoreName,
+                nextDesc,
+                nextDescEn,
+                nextDescTh,
+                nextRules,
+                nextRulesEn,
+                nextRulesTh,
+                nextLogo,
+                nextKakao,
+                nextChannelsJson,
+            ], function(err3) {
                 if (err3) return res.status(500).json({ error: err3.message });
-                if (kakao_url !== undefined) {
+                if (kakao_url !== undefined || contact_channels !== undefined) {
                     db.run(
                         'UPDATE customers SET kakao_url = ? WHERE LOWER(login_id) = LOWER(?) OR LOWER(bandadmin_id) = LOWER(?)',
                         [nextKakao, vendor_code, vendor_code],
                         () => {}
                     );
                 }
-                res.json({ success: true, vendor_code, kakao_url: nextKakao });
+                res.json({
+                    success: true,
+                    vendor_code,
+                    kakao_url: nextKakao,
+                    contact_channels: nextChannelsArr,
+                });
             });
         });
     });
@@ -1974,7 +2255,7 @@ app.put('/api/vendor-profiles/:vendor_code', (req, res) => {
 app.get('/api/products', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     try {
-        let { page = 1, limit = 25, brand, upper_category, category, season, search, sort, hide_so = 'false', min_price, max_price, min_width, max_width, show_in_stock = 'false', show_scheduled = 'false', stock_status = 'all', arrival_date, isAdminPanel = 'false', style, vendor } = req.query;
+        let { page = 1, limit = 25, gender, brand, upper_category, category, season, search, sort, hide_so = 'false', min_price, max_price, min_width, max_width, show_in_stock = 'false', show_scheduled = 'false', stock_status = 'all', arrival_date, isAdminPanel = 'false', style, vendor } = req.query;
         page = parseInt(page, 10);
         limit = parseInt(limit, 10);
         const offset = (page - 1) * limit;
@@ -1997,6 +2278,23 @@ app.get('/api/products', async (req, res) => {
             query += vendorFilter;
             whereClause += vendorFilter;
             params.push(vendor);
+        }
+
+        // 성별 필터 (추천 테마 및 카탈로그 연동: 남성/여성/공용 호환)
+        if (gender && gender !== 'All') {
+            const genderStr = Array.isArray(gender) ? gender.join(',') : String(gender);
+            const genderTokens = genderStr.split(',').map((g) => g.trim().toLowerCase()).filter(Boolean);
+            const wantsMen = genderTokens.some((g) => ['남성', '남자', 'men', 'male', 'm'].includes(g));
+            const wantsWomen = genderTokens.some((g) => ['여성', '여자', 'women', 'female', 'f', 'w'].includes(g));
+            if (wantsMen && !wantsWomen) {
+                const genderFilter = ` AND LOWER(TRIM(COALESCE(products.gender, ''))) IN ('남성', '남자', 'men', 'male', 'm', '공용', '남녀공용', 'unisex', '')`;
+                query += genderFilter;
+                whereClause += genderFilter;
+            } else if (wantsWomen && !wantsMen) {
+                const genderFilter = ` AND LOWER(TRIM(COALESCE(products.gender, ''))) IN ('여성', '여자', 'women', 'female', 'f', 'w', '공용', '남녀공용', 'unisex')`;
+                query += genderFilter;
+                whereClause += genderFilter;
+            }
         }
 
         // 재고 상태 필터 (stock_status: all, in_stock, sold_out)
@@ -2270,7 +2568,11 @@ app.get('/api/products/:code', (req, res) => {
     db.get(`
         SELECT p.*,
                IFNULL(d.discount_rate, 0) as discount_rate,
-               vp.store_name as vendor_store_name,
+               COALESCE(
+                   NULLIF(TRIM(vp.store_name), ''),
+                   (SELECT NULLIF(TRIM(vp2.store_name), '') FROM vendor_profiles vp2 WHERE LOWER(vp2.vendor_code) = LOWER(p.vendor_code) LIMIT 1),
+                   (SELECT NULLIF(TRIM(vp3.store_name), '') FROM vendor_profiles vp3 WHERE p.code LIKE (vp3.vendor_code || '-%') AND NULLIF(TRIM(vp3.store_name), '') IS NOT NULL LIMIT 1)
+               ) as vendor_store_name,
                COALESCE(
                    NULLIF(TRIM(vp.kakao_url), ''),
                    NULLIF(TRIM(c.kakao_url), ''),
@@ -2278,7 +2580,13 @@ app.get('/api/products/:code', (req, res) => {
                    (SELECT NULLIF(TRIM(c2.kakao_url), '') FROM customers c2 WHERE LOWER(c2.login_id) = LOWER(p.vendor_code) OR LOWER(c2.bandadmin_id) = LOWER(p.vendor_code) LIMIT 1),
                    (SELECT NULLIF(TRIM(vp3.kakao_url), '') FROM vendor_profiles vp3 WHERE p.code LIKE (vp3.vendor_code || '-%') AND NULLIF(TRIM(vp3.kakao_url), '') IS NOT NULL LIMIT 1),
                    (SELECT NULLIF(TRIM(c3.kakao_url), '') FROM customers c3 WHERE (p.code LIKE (c3.bandadmin_id || '-%') OR p.code LIKE (c3.login_id || '-%')) AND NULLIF(TRIM(c3.kakao_url), '') IS NOT NULL LIMIT 1)
-               ) as vendor_kakao_url
+               ) as vendor_kakao_url,
+               COALESCE(
+                   CASE WHEN vp.contact_channels IS NOT NULL AND TRIM(vp.contact_channels) NOT IN ('', '[]') THEN vp.contact_channels ELSE NULL END,
+                   (SELECT vp2.contact_channels FROM vendor_profiles vp2 WHERE LOWER(vp2.vendor_code) = LOWER(p.vendor_code) AND vp2.contact_channels IS NOT NULL AND TRIM(vp2.contact_channels) NOT IN ('', '[]') LIMIT 1),
+                   (SELECT vp3.contact_channels FROM vendor_profiles vp3 WHERE p.code LIKE (vp3.vendor_code || '-%') AND vp3.contact_channels IS NOT NULL AND TRIM(vp3.contact_channels) NOT IN ('', '[]') LIMIT 1),
+                   '[]'
+               ) as vendor_contact_channels
         FROM products p
         LEFT JOIN discount_products d ON p.code = d.product_code
         LEFT JOIN vendor_profiles vp ON p.vendor_code = vp.vendor_code
@@ -2287,6 +2595,9 @@ app.get('/api/products/:code', (req, res) => {
     `, [code], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Product not found' });
+
+        // 프론트엔드가 즉시 사용할 수 있도록 다중 연락 플랫폼 JSON 문자열을 배열로 파싱
+        row.vendor_contact_channels = parseContactChannelsSafe(row.vendor_contact_channels);
 
         // ─── 로컬 이미지 폴더 탐색 (DB 데이터보다 우선) ───
         const productImgDir = path.join(STATIC_ASSETS_PATH, 'images', code);
@@ -2343,57 +2654,79 @@ app.get('/api/products/:code', (req, res) => {
 
 
 // GET /api/filters — 브랜드(정규화), 상위카테고리(제품수 DESC), 하위카테고리, 가격 범위
+// 왜 각 서브 쿼리의 SQLite 오류를 개별 격리(resolve)하는가:
+// 특정 컬럼/데이터 상태 때문에 전체 /api/filters가 500으로 죽으면 추천 테마 관리와 카탈로그 필터 전체가
+// 빈 박스로 마비되므로, 부분 예외가 나더라도 나머지 필터 목록은 정상 반환되도록 방어합니다.
 app.get('/api/filters', async (req, res) => {
     try {
         const cache = await getBrandCache();
 
+        // 재고중 브랜드 캐시가 비어 있을 경우(예: 입고예정/품절 상품만 존재 시) 전체 상품 브랜드로 안전 폴백
+        let resolvedBrands = Array.isArray(cache.allBrands) ? cache.allBrands : [];
+        if (resolvedBrands.length === 0) {
+            resolvedBrands = await new Promise((resolve) =>
+                db.all(
+                    `SELECT DISTINCT TRIM(brand) as brand FROM products 
+                     WHERE brand IS NOT NULL AND TRIM(brand) != '' AND LOWER(TRIM(brand)) != 'nan' 
+                     ORDER BY brand COLLATE NOCASE ASC`,
+                    [],
+                    (err, rows) => {
+                        if (err || !rows) return resolve([]);
+                        resolve(rows.map((r) => r.brand).filter(Boolean));
+                    }
+                )
+            );
+        }
+
         // 상위카테고리: 제품 수 많은 순서로 정렬
-        const upperCategories = await new Promise((resolve, reject) =>
+        const upperCategories = await new Promise((resolve) =>
             db.all(
                 `SELECT upper_category, COUNT(*) as cnt FROM products 
-                 WHERE upper_category != '' AND upper_category != 'nan' 
+                 WHERE upper_category IS NOT NULL AND TRIM(upper_category) != '' AND LOWER(TRIM(upper_category)) != 'nan' 
                  GROUP BY upper_category ORDER BY cnt DESC`,
                 [],
                 (err, rows) => {
                     if (err) {
-                        if (err.message.includes('no such table')) return resolve([]);
-                        return reject(err);
+                        console.warn('[Filters] upperCategories query warning:', err.message);
+                        return resolve([]);
                     }
-                    resolve(rows.map(r => r.upper_category));
+                    resolve((rows || []).map(r => r.upper_category));
                 }
             )
         );
 
-        // 하위카테고리 (알파벳순)
-        const categories = await new Promise((resolve, reject) =>
+        // 하위카테고리 (알파벳/가나다순)
+        const categories = await new Promise((resolve) =>
             db.all(
-                `SELECT DISTINCT category FROM products WHERE category != '' AND category != 'nan' ORDER BY category`,
+                `SELECT DISTINCT TRIM(category) as category FROM products 
+                 WHERE category IS NOT NULL AND TRIM(category) != '' AND LOWER(TRIM(category)) != 'nan' 
+                 ORDER BY category`,
                 [],
                 (err, rows) => {
                     if (err) {
-                        if (err.message.includes('no such table')) return resolve([]);
-                        return reject(err);
+                        console.warn('[Filters] categories query warning:', err.message);
+                        return resolve([]);
                     }
-                    resolve(rows.map(r => r.category));
+                    resolve((rows || []).map(r => r.category).filter(Boolean));
                 }
             )
         );
 
         // 카테고리 매핑 (상위카테고리 -> 하위카테고리 목록)
-        const categoryMap = await new Promise((resolve, reject) =>
+        const categoryMap = await new Promise((resolve) =>
             db.all(
-                `SELECT DISTINCT upper_category, category FROM products 
-                 WHERE category != '' AND category != 'nan' 
-                 AND upper_category != '' AND upper_category != 'nan'
+                `SELECT DISTINCT TRIM(upper_category) as upper_category, TRIM(category) as category FROM products 
+                 WHERE category IS NOT NULL AND TRIM(category) != '' AND LOWER(TRIM(category)) != 'nan' 
+                 AND upper_category IS NOT NULL AND TRIM(upper_category) != '' AND LOWER(TRIM(upper_category)) != 'nan'
                  ORDER BY upper_category, category`,
                 [],
                 (err, rows) => {
                     if (err) {
-                        if (err.message.includes('no such table')) return resolve({});
-                        return reject(err);
+                        console.warn('[Filters] categoryMap query warning:', err.message);
+                        return resolve({});
                     }
                     const map = {};
-                    rows.forEach(r => {
+                    (rows || []).forEach(r => {
                         if (!map[r.upper_category]) map[r.upper_category] = [];
                         map[r.upper_category].push(r.category);
                     });
@@ -2403,23 +2736,20 @@ app.get('/api/filters', async (req, res) => {
         );
 
         // 가격 범위 (TBD 제외)
-        const priceRange = await new Promise((resolve, reject) =>
+        const priceRange = await new Promise((resolve) =>
             db.get(
                 `SELECT MIN(CAST(price AS INTEGER)) as minPrice, MAX(CAST(price AS INTEGER)) as maxPrice 
                  FROM products WHERE price != 'TBD' AND price != '' AND price != 'nan'`,
                 [],
                 (err, row) => {
-                    if (err) {
-                        if (err.message.includes('no such table')) return resolve({ min: 0, max: 100000 });
-                        return reject(err);
-                    }
+                    if (err) return resolve({ min: 0, max: 100000 });
                     resolve({ min: row?.minPrice || 0, max: row?.maxPrice || 100000 });
                 }
             )
         );
 
         // 가슴단면(width) 범위 (actual_size: 'width,length' 형식에서 추출)
-        const widthRange = await new Promise((resolve, reject) =>
+        const widthRange = await new Promise((resolve) =>
             db.get(
                 `SELECT MIN(CAST(CASE WHEN INSTR(actual_size, ',') > 0 THEN SUBSTR(actual_size, 1, INSTR(actual_size, ',') - 1) ELSE actual_size END AS REAL)) as minWidth, 
                         MAX(CAST(CASE WHEN INSTR(actual_size, ',') > 0 THEN SUBSTR(actual_size, 1, INSTR(actual_size, ',') - 1) ELSE actual_size END AS REAL)) as maxWidth 
@@ -2439,7 +2769,7 @@ app.get('/api/filters', async (req, res) => {
         );
 
         // 도착 예정일 목록 (알파벳/날짜순 정렬)
-        const arrivalDates = await new Promise((resolve, reject) =>
+        const arrivalDates = await new Promise((resolve) =>
             db.all(
                 `SELECT DISTINCT arrival_date FROM products 
                  WHERE arrival_date != '' AND arrival_date != 'nan' AND arrival_date IS NOT NULL 
@@ -2447,13 +2777,13 @@ app.get('/api/filters', async (req, res) => {
                 [],
                 (err, rows) => {
                     if (err) return resolve([]);
-                    resolve(rows.map(r => r.arrival_date));
+                    resolve((rows || []).map(r => r.arrival_date));
                 }
             )
         );
 
         res.json({
-            brands: cache.allBrands,
+            brands: resolvedBrands,
             topBrands: cache.topBrands,
             upperCategories,
             categories,

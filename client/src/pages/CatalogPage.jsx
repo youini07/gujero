@@ -4,6 +4,7 @@ import ProductCard from '../components/ProductCard';
 import LucianCategoryPills from '../components/LucianCategoryPills';
 import { fetchProducts, fetchFilters, fetchTodayOrders, fetchFeaturedDiscounts, fetchNotices } from '../services/api';
 import { getTranslation, formatArrivalDate } from '../services/i18n';
+import { getLocalizedVendorField } from '../services/vendorChannels';
 import { useAuth } from '../contexts/AuthContext';
 import { Helmet } from 'react-helmet-async';
 
@@ -539,7 +540,10 @@ const CatalogPage = ({ lang }) => {
                         </div>
                     )}
 
-                    {vendorProfile && (
+                    {vendorProfile && (() => {
+                        const localizedDesc = getLocalizedVendorField(vendorProfile, 'description', lang);
+                        const localizedRules = getLocalizedVendorField(vendorProfile, 'rules', lang);
+                        return (
                         <>
                         <button 
                             onClick={() => window.location.href = `/vendors?lang=${lang}`}
@@ -557,24 +561,25 @@ const CatalogPage = ({ lang }) => {
                                     <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2.5 text-[#18181B]">
                                         {vendorProfile.store_name || vendorProfile.vendor_code || (lang === 'TH' ? 'ร้านค้าวินเทจ' : lang === 'EN' ? 'Vintage Store' : '상호명 미등록')}
                                     </h2>
-                                    {vendorProfile.description && (
-                                        <p className="text-xs md:text-sm text-[#57534E] whitespace-pre-wrap mb-4 leading-relaxed">{vendorProfile.description}</p>
+                                    {localizedDesc && (
+                                        <p className="text-xs md:text-sm text-[#57534E] whitespace-pre-wrap mb-4 leading-relaxed">{localizedDesc}</p>
                                     )}
-                                    {vendorProfile.rules && (
+                                    {localizedRules && (
                                         <div className="bg-white p-3.5 rounded-xl text-xs md:text-sm text-[#57534E] whitespace-pre-wrap border border-[#E7E5E4]">
                                             <div className="flex items-center gap-1.5 mb-1.5">
                                                 <span className="font-bold text-[#18181B] tracking-tight text-xs">
                                                     {lang === 'TH' ? 'ประกาศ / นโยบายร้านค้า' : lang === 'EN' ? 'Store Notice / Policy' : '매장 공지 / 정책'}
                                                 </span>
                                             </div>
-                                            <div className="leading-relaxed">{vendorProfile.rules}</div>
+                                            <div className="leading-relaxed">{localizedRules}</div>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         </div>
                         </>
-                    )}
+                        );
+                    })()}
 
                     <div className={`flex justify-between items-center mb-5 border-b pb-2.5 ${isArchive ? 'border-black/10' : 'border-[#E7E5E4]'}`}>
                         <div className={`flex-1 ${isArchive ? 'py-4' : ''}`}>

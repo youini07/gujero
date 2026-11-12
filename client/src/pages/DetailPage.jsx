@@ -6,6 +6,7 @@ import { getTranslation } from '../services/i18n';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useAuth } from '../contexts/AuthContext';
+import ProductInquiryControl from '../components/ProductInquiryControl';
 
 const DetailPage = ({ lang }) => {
     const { code } = useParams();
@@ -20,8 +21,6 @@ const DetailPage = ({ lang }) => {
     const [activeImgIdx, setActiveImgIdx] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
-    const [kakaoInquiryModal, setKakaoInquiryModal] = useState(null);
-    const [inquiryCopiedToast, setInquiryCopiedToast] = useState(false);
     const carouselRef = useRef(null);
 
     // 뷰포트 맨 위로
@@ -337,101 +336,6 @@ const DetailPage = ({ lang }) => {
         ? Math.round(rawPrice * (1 - discount_rate / 100))
         : rawPrice;
     const displayPrice = !isNaN(rawPrice) ? specialDiscountedPrice.toLocaleString() : price;
-
-    const normalizeKakaoUrl = (rawUrl) => {
-        const trimmed = String(rawUrl || '').trim();
-        if (!trimmed) return '';
-        if (/^https?:\/\//i.test(trimmed)) return trimmed;
-        return `https://${trimmed}`;
-    };
-
-    const buildInquiryMessage = () => {
-        const productUrl = window.location.href;
-        const cleanCode = code.startsWith('TEMP_') ? (tLang === 'TH' ? 'รอกำหนด' : tLang === 'EN' ? 'TBD' : '도착예정') : code;
-        const storeLabel = product.vendor_store_name || product.vendor_code || (tLang === 'TH' ? 'ผู้ขาย' : tLang === 'EN' ? 'Seller' : '판매자');
-        if (tLang === 'TH') {
-            return [
-                `📦 [สอบถามสินค้า GUJERO]`,
-                `• ร้านค้า: ${storeLabel}`,
-                `• สินค้า: [${brand}] ${displayName}`,
-                size ? `• ไซส์: ${size}` : null,
-                `• รหัสสินค้า: ${cleanCode}`,
-                `• ราคา: ${curr}${displayPrice}`,
-                `• ลิงก์สินค้า: ${productUrl}`,
-                ``,
-                `สวัสดีครับ/ค่ะ สนใจสอบถามสินค้าชิ้นนี้จากเว็บไซต์ GUJERO :)`
-            ].filter(v => v !== null).join('\n');
-        }
-        if (tLang === 'EN') {
-            return [
-                `📦 [GUJERO Product Inquiry]`,
-                `• Store: ${storeLabel}`,
-                `• Item: [${brand}] ${displayName}`,
-                size ? `• Size: ${size}` : null,
-                `• Code: ${cleanCode}`,
-                `• Price: ${curr}${displayPrice}`,
-                `• Product Link: ${productUrl}`,
-                ``,
-                `Hello! I saw this item on GUJERO and would like to inquire about it :)`
-            ].filter(v => v !== null).join('\n');
-        }
-        return [
-            `📦 [구제로(GUJERO) 상품 문의]`,
-            `• 상품명: [${brand}] ${displayName}`,
-            size ? `• 사이즈: ${size}` : null,
-            `• 상품코드: ${cleanCode}`,
-            `• 판매가격: ${curr}${displayPrice}`,
-            `• 문의 상품 링크: ${productUrl}`,
-            ``,
-            `안녕하세요 사장님! 위 상품 링크 보고 문의드립니다 :)`
-        ].filter(v => v !== null).join('\n');
-    };
-
-    const copyTextSafe = async (text) => {
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
-                return true;
-            }
-        } catch (err) {
-            console.warn('Clipboard API 실패, fallback 시도:', err);
-        }
-        try {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.opacity = '0';
-            document.body.appendChild(ta);
-            ta.focus();
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    };
-
-    const handleInquiry = async () => {
-        const textToCopy = buildInquiryMessage();
-        const kakaoUrl = normalizeKakaoUrl(product.vendor_kakao_url);
-
-        await copyTextSafe(textToCopy);
-        setInquiryCopiedToast(true);
-        setTimeout(() => setInquiryCopiedToast(false), 3000);
-
-        // 자동완성된 문의 메시지 확인 + 사장님 카카오톡 연결 모달 표시
-        setKakaoInquiryModal({
-            text: textToCopy,
-            kakaoUrl,
-            storeName: product.vendor_store_name || product.vendor_code || '입점 사장님',
-        });
-
-        // 사장님 카카오톡 주소가 등록되어 있으면 즉시 새 창으로도 연결
-        if (kakaoUrl) {
-            window.open(kakaoUrl, '_blank', 'noopener,noreferrer');
-        }
-    };
 
     const handleShare = async () => {
         const shareData = {
@@ -794,19 +698,15 @@ const DetailPage = ({ lang }) => {
                             </button>
                         )}
 
-                        {/* 3. 카카오톡 문의 버튼 (업로드한 각 사장님의 카카오톡으로 연결 + 상품 링크/정보 자동완성) */}
+                        {/* 3. 판매자 다중 연락 플랫폼 문의 버튼 (1개일 때 단일 버튼, 2개 이상일 때 통합 드롭다운 + 선택 언어별 자동완성) */}
                         {!isSoldOut && (
-                            <button 
-                                onClick={handleInquiry}
-                                className="flex-1 h-full bg-[#FEE500] hover:bg-[#F4DC00] text-[#371D1E] font-black rounded-lg transition-all flex items-center justify-center gap-1.5 text-[11px] md:text-[13px] shadow-sm px-2 border border-[#E5CE00]"
-                            >
-                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 md:w-4.5 md:h-4.5 flex-none">
-                                    <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
-                                </svg>
-                                <span className="whitespace-nowrap">
-                                    {tLang === 'KR' ? '카카오톡 문의' : tLang === 'TH' ? 'สอบถามทาง KakaoTalk' : 'KakaoTalk Inquiry'}
-                                </span>
-                            </button>
+                            <ProductInquiryControl
+                                product={product}
+                                code={code}
+                                lang={tLang}
+                                curr={curr}
+                                displayPrice={displayPrice}
+                            />
                         )}
                     </div>
 
@@ -918,124 +818,6 @@ const DetailPage = ({ lang }) => {
                     {/* 이미지 정보 / 하단 인디케이터 */}
                     <div className="mt-8 text-white/50 text-sm font-bold tracking-widest uppercase">
                         {lightboxImgIdx + 1} / {imageList.length}
-                    </div>
-                </div>
-            )}
-
-            {/* ─── 카카오톡 상품 문의 자동완성 & 연결 모달 ─── */}
-            {kakaoInquiryModal && (
-                <div
-                    className="fixed inset-0 z-[20000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-                    onClick={() => setKakaoInquiryModal(null)}
-                >
-                    <div
-                        className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-100"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="bg-[#FEE500] px-5 py-4 flex items-center justify-between text-[#371D1E]">
-                            <div className="flex items-center gap-2 font-black text-base">
-                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                    <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
-                                </svg>
-                                <span>
-                                    {tLang === 'TH'
-                                        ? 'เชื่อมต่อแชท KakaoTalk กับผู้ขาย'
-                                        : tLang === 'EN'
-                                            ? 'Seller KakaoTalk Product Inquiry'
-                                            : '사장님 카카오톡 상품 문의 연결'}
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => setKakaoInquiryModal(null)}
-                                className="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center font-bold text-sm"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="p-5 space-y-4">
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-emerald-900 text-xs font-bold leading-relaxed flex items-start gap-2">
-                                <span className="text-base leading-none">✅</span>
-                                <div>
-                                    {tLang === 'TH' ? (
-                                        <>คัดลอกข้อมูลสินค้าและลิงก์ไปยังคลิปบอร์ดเรียบร้อยแล้ว!<br />กรุณาวางข้อความ (<b>Paste / Ctrl+V</b>) ในห้องแชท KakaoTalk เพื่อสอบถามผู้ขาย</>
-                                    ) : tLang === 'EN' ? (
-                                        <>Product details and link have been <b>automatically copied to your clipboard</b>!<br />Simply <b>paste (Ctrl+V or Long Press → Paste)</b> into the KakaoTalk chat room and send.</>
-                                    ) : (
-                                        <>어떤 상품에서 문의하셨는지 사장님이 바로 알아보실 수 있도록 <b>아래 상품 정보와 링크가 클립보드에 자동 완성(복사)</b>되었습니다!<br />열린 카카오톡 채팅방 입력창에 <b>붙여넣기(Ctrl+V 또는 길게 눌러 붙여넣기)</b> 후 전송해 주세요.</>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-black text-gray-700">
-                                        {tLang === 'TH'
-                                            ? '📋 ข้อความสอบถามอัตโนมัติ (คัดลอกแล้ว)'
-                                            : tLang === 'EN'
-                                                ? '📋 Auto-Completed Inquiry Message (Copied)'
-                                                : '📋 자동 완성된 문의 메시지 (복사 완료)'}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            await copyTextSafe(kakaoInquiryModal.text);
-                                            setInquiryCopiedToast(true);
-                                            setTimeout(() => setInquiryCopiedToast(false), 2500);
-                                        }}
-                                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
-                                    >
-                                        {inquiryCopiedToast
-                                            ? (tLang === 'TH' ? '✓ คัดลอกแล้ว!' : tLang === 'EN' ? '✓ Copied!' : '✓ 복사됨!')
-                                            : (tLang === 'TH' ? 'คัดลอกอีกครั้ง' : tLang === 'EN' ? 'Copy Again' : '다시 복사')}
-                                    </button>
-                                </div>
-                                <pre className="w-full p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-800 whitespace-pre-wrap break-all font-sans leading-relaxed max-h-48 overflow-y-auto">
-                                    {kakaoInquiryModal.text}
-                                </pre>
-                            </div>
-
-                            {kakaoInquiryModal.kakaoUrl ? (
-                                <a
-                                    href={kakaoInquiryModal.kakaoUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={async () => {
-                                        await copyTextSafe(kakaoInquiryModal.text);
-                                    }}
-                                    className="w-full py-3.5 px-4 bg-[#FEE500] hover:bg-[#F4DC00] text-[#371D1E] font-black rounded-2xl shadow-sm flex items-center justify-center gap-2 text-sm transition-all border border-[#E5CE00]"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                        <path d="M12 3C6.477 3 2 6.477 2 10.765c0 2.772 1.868 5.205 4.682 6.57-.154.553-.992 3.553-1.028 3.788 0 0-.02.167.088.231.108.064.235.015.235.015.31-.043 3.593-2.353 4.162-2.753.602.087 1.224.134 1.861.134 5.523 0 10-3.477 10-7.765S17.523 3 12 3z" />
-                                    </svg>
-                                    <span>
-                                        {tLang === 'TH'
-                                            ? `เปิดแชท KakaoTalk ของ ${kakaoInquiryModal.storeName}`
-                                            : tLang === 'EN'
-                                                ? `Open ${kakaoInquiryModal.storeName} KakaoTalk Chat`
-                                                : `${kakaoInquiryModal.storeName} 카카오톡 채팅방 열기`}
-                                    </span>
-                                </a>
-                            ) : (
-                                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold leading-relaxed text-center">
-                                    {tLang === 'TH' ? (
-                                        <>⚠️ ผู้ขายยังไม่ได้ตั้งค่าลิงก์ KakaoTalk สำหรับร้านค้านี้</>
-                                    ) : tLang === 'EN' ? (
-                                        <>⚠️ The seller has not configured a KakaoTalk chat link for this store yet.</>
-                                    ) : (
-                                        <>⚠️ 이 상품을 업로드한 사장님의 카카오톡 상담 주소가 아직 설정되지 않았습니다.<br />(사장님께서 [마이페이지 → 매장 프로필 관리] 또는 [밴드어드민 → 오픈마켓 설정]에서 카카오톡 주소를 입력하시면 즉시 연결됩니다.)</>
-                                    )}
-                                </div>
-                            )}
-
-                            <button
-                                type="button"
-                                onClick={() => setKakaoInquiryModal(null)}
-                                className="w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors"
-                            >
-                                {tLang === 'TH' ? 'ปิด' : tLang === 'EN' ? 'Close' : '닫기'}
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}
