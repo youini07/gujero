@@ -43,16 +43,23 @@ export default function VendorListPage({ lang = 'KR' }) {
     };
 
     return (
-        <div className="min-h-screen pb-12 relative bg-gray-50">
+        <div className="min-h-screen pb-14 relative bg-[#F6F5F2]">
             <div className="py-6 px-4 max-w-6xl mx-auto">
+                <div className="mb-5">
+                    <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[#78716C] mb-1">Partner Curators</span>
+                    <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-[#18181B]">
+                        {normLang === 'TH' ? 'ร้านค้าพาร์ทเนอร์' : normLang === 'EN' ? 'Partner Vintage Stores' : '입점 빈티지 편집샵'}
+                    </h1>
+                </div>
+
                 {loading ? (
-                    <div className="flex justify-center py-10">
-                        <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="flex justify-center py-14">
+                        <div className="w-7 h-7 border-2 border-[#E7E5E4] border-t-[#18181B] rounded-full animate-spin"></div>
                     </div>
                 ) : error ? (
-                    <div className="text-center text-red-600 py-10 font-bold">{error}</div>
+                    <div className="text-center text-rose-600 py-10 font-bold text-sm">{error}</div>
                 ) : vendors.length === 0 ? (
-                    <div className="text-center text-gray-800 py-10 font-bold">
+                    <div className="text-center text-[#78716C] py-12 font-semibold text-sm bg-white border border-[#E7E5E4] rounded-2xl">
                         {normLang === 'TH'
                             ? 'ยังไม่มีร้านค้าที่ลงทะเบียน'
                             : normLang === 'EN'
@@ -60,14 +67,14 @@ export default function VendorListPage({ lang = 'KR' }) {
                                 : '등록된 매장이 없습니다.'}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-5">
+                    <div className="grid grid-cols-1 gap-3.5">
                         {vendors.map((v, idx) => (
                             <div
                                 key={idx}
                                 onClick={() => handleVendorClick(v.vendor_code)}
-                                className="bg-white/90 backdrop-blur-md border border-gray-300 rounded-2xl overflow-hidden cursor-pointer hover:border-black transition-all shadow-xl flex flex-row group items-stretch h-40 md:h-48 relative"
+                                className="bg-white border border-[#E7E5E4] rounded-2xl overflow-hidden cursor-pointer hover:border-[#18181B] transition-colors flex flex-row group items-stretch h-36 md:h-44 relative"
                             >
-                                <div className="w-2/5 md:w-1/3 bg-gray-200 relative overflow-hidden shrink-0">
+                                <div className="w-[36%] md:w-1/3 bg-[#FAF9F6] relative overflow-hidden shrink-0 border-r border-[#E7E5E4]">
                                     <img
                                         src={v.logo_url || '/stores.jpg'}
                                         onError={(e) => {
@@ -77,9 +84,9 @@ export default function VendorListPage({ lang = 'KR' }) {
                                         alt={v.store_name || v.vendor_code}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-60"></div>
-                                    <div className="absolute bottom-3 left-3">
-                                        <p className="text-[11px] text-gray-200 font-medium bg-black/50 px-2 py-0.5 rounded-sm backdrop-blur-md">
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent"></div>
+                                    <div className="absolute bottom-2.5 left-2.5">
+                                        <p className="text-[11px] text-white font-semibold bg-black/55 px-2 py-0.5 rounded-md backdrop-blur-sm tabular-nums">
                                             {normLang === 'TH'
                                                 ? `สินค้า ${v.cnt} รายการ`
                                                 : normLang === 'EN'
@@ -88,33 +95,34 @@ export default function VendorListPage({ lang = 'KR' }) {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="p-4 md:p-5 flex flex-col flex-1 overflow-hidden">
-                                    <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-1 truncate">
-                                        {v.store_name || v.vendor_code || (normLang === 'TH' ? 'ร้านค้าวินเทจ' : normLang === 'EN' ? 'Vintage Store' : '상호명 미등록')}
-                                    </h2>
+                                <div className="p-3.5 md:p-5 pr-9 flex flex-col flex-1 overflow-hidden justify-between">
+                                    <div>
+                                        <h2 className="text-[17px] md:text-2xl font-extrabold text-[#18181B] tracking-tight mb-1 truncate">
+                                            {v.store_name || v.vendor_code || (normLang === 'TH' ? 'ร้านค้าวินเทจ' : normLang === 'EN' ? 'Vintage Store' : '상호명 미등록')}
+                                        </h2>
 
-                                    <div className="flex-1 overflow-hidden flex flex-col justify-center">
-                                        {v.description && (
-                                            <p className="text-sm md:text-base text-gray-700 line-clamp-2 mb-1 font-medium whitespace-pre-line">
+                                        {v.description ? (
+                                            <p className="text-xs md:text-sm text-[#57534E] line-clamp-2 font-medium whitespace-pre-line leading-relaxed">
                                                 {v.description}
                                             </p>
-                                        )}
-                                        {v.rules && (
-                                            <p className="text-xs md:text-sm text-gray-500 line-clamp-2 mt-1 pt-1 border-t border-gray-200 whitespace-pre-line">
-                                                {v.rules}
-                                            </p>
-                                        )}
-                                        {!v.description && !v.rules && (
-                                            <p className="text-sm text-gray-400 italic mt-1">
+                                        ) : !v.rules ? (
+                                            <p className="text-xs text-[#A8A29E] mt-1">
                                                 {normLang === 'TH'
                                                     ? 'ยังไม่มีคำอธิบายร้านค้า'
                                                     : normLang === 'EN'
                                                         ? 'No store description available.'
                                                         : '등록된 매장 소개가 없습니다.'}
                                             </p>
-                                        )}
+                                        ) : null}
                                     </div>
-                                    <div className="absolute right-4 bottom-4 text-gray-400 group-hover:text-black transition-colors">
+
+                                    {v.rules && (
+                                        <p className="text-[11px] md:text-xs text-[#78716C] line-clamp-1 pt-2 border-t border-[#F5F5F4] whitespace-pre-line">
+                                            {v.rules}
+                                        </p>
+                                    )}
+
+                                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#A8A29E] group-hover:text-[#18181B] transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>

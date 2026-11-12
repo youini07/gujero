@@ -12,6 +12,7 @@ import { fetchOrders, fetchCustomerProfile, updateProfile, fetchAdminOrders, upd
 import { getTranslation } from '../services/i18n';
 import SalesAnalyticsTab from '../components/SalesAnalyticsTab';
 import AdminThemesTab from '../components/AdminThemesTab';
+import LucianCategoryPills from '../components/LucianCategoryPills';
 
 /**
  * 내 정보 관리 페이지 (마이페이지)
@@ -439,21 +440,51 @@ const MyPage = ({ lang }) => {
     const [historyFilter, setHistoryFilter] = useState('all');
 
     
-    // 다음 우편번호 찾기 팝업
+    // 카카오 우편번호 찾기 팝업 (2026-11-30 t1.daumcdn.net 종료 대비 신규 t1.kakaocdn.net 및 window.kakao.Postcode 연동)
     const handleOpenPostcode = () => {
-        if (!window.daum || !window.daum.Postcode) {
-            alert((t('register_address_search') || '주소 검색') + ' 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        const openPopupWithCtor = (PostcodeCtor) => {
+            new PostcodeCtor({
+                oncomplete: function(data) {
+                    setFormData(prev => ({
+                        ...prev,
+                        postal_code: data.zonecode,
+                        address_kr: data.roadAddress || data.address
+                    }));
+                }
+            }).open();
+        };
+
+        const existingCtor = window.kakao?.Postcode || window.daum?.Postcode;
+        if (existingCtor) {
+            openPopupWithCtor(existingCtor);
             return;
         }
-        new window.daum.Postcode({
-            oncomplete: function(data) {
-                setFormData(prev => ({
-                    ...prev,
-                    postal_code: data.zonecode,
-                    address_kr: data.address
-                }));
+
+        // 초기 로딩 지연·순단으로 스크립트가 아직 준비되지 않은 경우 신규 공식 CDN에서 즉시 동적 로드 후 실행
+        const KAKAO_POSTCODE_URL = 'https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+        let script = document.querySelector('script[data-kakao-postcode-dynamic="true"]');
+        if (!script) {
+            script = document.createElement('script');
+            script.src = KAKAO_POSTCODE_URL;
+            script.async = true;
+            script.defer = true;
+            script.setAttribute('data-kakao-postcode-dynamic', 'true');
+            document.head.appendChild(script);
+        }
+
+        const handleLoaded = () => {
+            const loadedCtor = window.kakao?.Postcode || window.daum?.Postcode;
+            if (loadedCtor) {
+                openPopupWithCtor(loadedCtor);
+            } else {
+                alert((t('register_address_search') || '주소 검색') + ' 서비스를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.');
             }
-        }).open();
+        };
+
+        script.addEventListener('load', handleLoaded, { once: true });
+        script.addEventListener('error', () => {
+            alert((t('register_address_search') || '주소 검색') + ' 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+        }, { once: true });
     };
 
     async function loadMyAdminData(type = '', query = '', dateValue = adminDateFilter) {
@@ -1444,14 +1475,15 @@ const MyPage = ({ lang }) => {
     }, [user, navigate, isAdmin, authLoading]);
 
     const getStatusStyle = (status) => {
+        // 왜 보라/인디고 색상을 제거했는가: 에디토리얼 커머스 톤에 맞는 스톤·앰버·틸·에메랄드·로즈 상태 배지로 통일하기 위함
         switch (status) {
-            case 'preorder_pending': return 'bg-indigo-50 text-indigo-700 border border-indigo-200 animate-pulse-subtle';
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'confirmed': return 'bg-blue-100 text-blue-800';
-            case 'shipped': return 'bg-purple-100 text-purple-800';
-            case 'delivered': return 'bg-green-100 text-green-800';
-            case 'cancelled': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
+            case 'preorder_pending': return 'bg-amber-50 text-amber-800 border border-amber-200 animate-pulse-subtle';
+            case 'pending': return 'bg-amber-50 text-amber-800 border border-amber-200';
+            case 'confirmed': return 'bg-stone-100 text-stone-800 border border-stone-200';
+            case 'shipped': return 'bg-teal-50 text-teal-800 border border-teal-200';
+            case 'delivered': return 'bg-emerald-50 text-emerald-800 border border-emerald-200';
+            case 'cancelled': return 'bg-rose-50 text-rose-700 border border-rose-200';
+            default: return 'bg-[#FAF9F6] text-[#57534E] border border-[#E7E5E4]';
         }
     };
 
@@ -1844,45 +1876,67 @@ const MyPage = ({ lang }) => {
     }
 
     return (
-        <div className={`${isAdmin ? 'w-full lg:max-w-[90%] xl:max-w-[80%]' : 'w-full max-w-3xl'} mx-auto px-[5px] md:px-4 py-4 md:py-8`}>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{isAdmin ? t('mypage_title') : 'Mypage'}</h1>
-            {profile && (
-                <p className="text-sm text-gray-400 mb-8">
-                    {profile.name} · {t('mypage_member_since')} {profile.created_at?.split(' ')[0]}
-                </p>
-            )}
+        <div className={`${isAdmin ? 'w-full lg:max-w-[92%] xl:max-w-[84%]' : 'w-full max-w-3xl'} mx-auto px-3.5 md:px-6 py-5 md:py-9`}>
+            <div className="mb-6">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-[#78716C] mb-1">
+                    {isAdmin ? 'Admin & Store Workspace' : 'Member Lounge'}
+                </span>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#18181B]">
+                    {isAdmin ? t('mypage_title') : 'Mypage'}
+                </h1>
+                {profile && (
+                    <p className="text-xs md:text-sm text-[#78716C] mt-1 tabular-nums">
+                        {profile.name} · {t('mypage_member_since')} {profile.created_at?.split(' ')[0]}
+                    </p>
+                )}
+            </div>
 
             {!activeTab ? (
-                <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-3 mb-8">
+                /* 왜 모바일을 4열에서 3열(grid-cols-3) 1px 헤어라인 카드로 변경했는가: 375px 화면에서 한글 메뉴명이 깨지거나 터치 오작동이 나는 문제를 해결하기 위함 */
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 md:gap-3 mb-8">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => { if (!tab.disabled) setActiveTab(tab.id) }}
                             disabled={tab.disabled}
-                            className={`flex flex-col items-center justify-center aspect-square rounded-lg transition-all ${
+                            className={`flex flex-col items-center justify-center aspect-square rounded-xl border transition-all p-2 ${
                                 tab.disabled
-                                    ? 'bg-gray-50 text-gray-400 opacity-60 cursor-not-allowed'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-[1.02] active:scale-95'
+                                    ? 'bg-[#FAF9F6] border-[#E7E5E4]/60 text-[#A8A29E] opacity-60 cursor-not-allowed'
+                                    : 'bg-white border-[#E7E5E4] text-[#18181B] hover:border-[#18181B] hover:bg-[#FAF9F6] active:scale-[0.98]'
                             }`}
                         >
-                            <span className={`text-2xl md:text-4xl mb-1.5 ${tab.disabled ? 'grayscale opacity-50' : ''}`}>{tab.icon}</span>
-                            <span className="text-[10px] md:text-[13px] font-bold text-center break-keep leading-tight px-1">{tab.label}</span>
-                            {tab.disabled && <span className="text-[8px] md:text-[10px] mt-0.5 text-gray-400 font-medium">사용불가</span>}
+                            <span className={`text-2xl md:text-3xl mb-2 ${tab.disabled ? 'grayscale opacity-50' : ''}`}>{tab.icon}</span>
+                            <span className="text-[11px] md:text-[13px] font-bold text-center break-keep leading-snug px-1">{tab.label}</span>
+                            {tab.disabled && <span className="text-[9px] md:text-[10px] mt-0.5 text-[#A8A29E] font-medium">사용불가</span>}
                         </button>
                     ))}
                 </div>
             ) : (
-                <div className="mb-6 border-b border-gray-100 pb-4">
-                    <button 
-                        onClick={() => setActiveTab(null)} 
-                        className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-black mb-4 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                        {lang === 'KR' ? '메뉴로 돌아가기' : 'Back to Menu'}
-                    </button>
-                    <h2 className="text-2xl font-black">{tabs.find(t => t.id === activeTab)?.label}</h2>
+                <div className="mb-6 border-b border-[#E7E5E4] pb-4 space-y-3.5">
+                    <div className="flex items-center justify-between gap-3">
+                        <button 
+                            onClick={() => setActiveTab(null)} 
+                            className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold text-[#78716C] hover:text-[#18181B] transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                            {lang === 'KR' ? '전체 메뉴' : 'All Menus'}
+                        </button>
+                        <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-[#18181B] truncate">
+                            {tabs.find(tb => tb.id === activeTab)?.label}
+                        </h2>
+                    </div>
+                    {/* 왜 활성 탭 상단에 Lucian #039 알약 탭 바를 배치했는가: 메뉴 그리드로 매번 뒤로 가지 않고도 원탭으로 다른 관리/쇼핑 탭으로 즉시 이동하기 위함 */}
+                    <LucianCategoryPills
+                        ariaLabel="마이페이지 빠른 탭 이동"
+                        value={activeTab}
+                        onChange={(val) => setActiveTab(val)}
+                        items={tabs.filter(tb => !tb.disabled).map(tb => ({
+                            value: tb.id,
+                            label: `${tb.icon} ${tb.label}`,
+                        }))}
+                    />
                 </div>
             )}
 

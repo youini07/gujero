@@ -1,54 +1,314 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600&family=Charm&family=Sriracha&family=Pacifico&display=swap');
+/* Lucian UX/UI Prompt #039, #041, #047, #212 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/ */
 @import "tailwindcss";
+
 @theme {
   --color-background: #ffffff;
-  --color-text: #1a1a1a;
-  --color-accent: #000000;
-  --color-border: #eeeeee;
-  --color-softBackground: #f9f9f9;
-  --color-gold-light: #fdfaf2;
-  --color-gold: #c5a043;
-  --color-gold-deep: #a6822e;
-  --font-sans: "Inter", sans-serif;
+  --color-text: #18181b;
+  --color-accent: #18181b;
+  --color-border: #e7e5e4;
+  --color-softBackground: #faf9f6;
+  --color-gold-light: #fbf8f1;
+  --color-gold: #b08d3c;
+  --color-gold-deep: #8c6d23;
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+:root {
+  /* 에디토리얼 빈티지 마켓플레이스(구제로) 전용 Lucian UX/UI 라이트 토큰 */
+  --ux-bg: #f6f5f2;
+  --ux-surface: #ffffff;
+  --ux-surface-2: #f5f4f0;
+  --ux-surface-3: #eceae4;
+  --ux-line: #e7e5e4;
+  --ux-ink: #18181b;
+  --ux-ink-2: #52525b;
+  --ux-ink-3: #71717a;
+  --ux-accent: #18181b;
+  --ux-accent-ink: #ffffff;
+  --ux-accent-soft: rgba(24, 24, 27, 0.06);
+  --ux-grad: linear-gradient(135deg, #27272a, #09090b);
+  --ux-shadow-strong: rgba(24, 24, 27, 0.16);
+  --ux-spring: cubic-bezier(0.22, 1.28, 0.36, 1);
+  --ux-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
   body {
-    @apply bg-background text-text font-sans antialiased m-0 p-0;
+    @apply bg-[#F6F5F2] text-text font-sans antialiased m-0 p-0;
+    letter-spacing: -0.015em;
+    overflow-x: hidden;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Lucian #212: 내리면 숨고 올리면 돌아오는 에디토리얼 헤더 ─── */
+.u212-site-hd {
+  transition: transform 0.36s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.28s, box-shadow 0.28s, backdrop-filter 0.28s;
+  background: rgba(255, 255, 255, 0.96);
+}
+.u212-site-hd.is-solid {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 1px 0 var(--ux-line), 0 10px 24px -18px var(--ux-shadow-strong);
+}
+.u212-site-hd.is-hide {
+  transform: translateY(-105%);
+}
+.u212-pg {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 0;
+  background: #18181b;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+.u212-site-hd.is-solid .u212-pg {
+  opacity: 1;
+}
+
+/* ─── Lucian #039: 미끄러지는 알약 탭 (카테고리 & 마이페이지 서브탭) ─── */
+.u039-bar {
+  --x: 4px;
+  --w: 64px;
+  --sx: 1;
+  --sy: 1;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--ux-surface-2);
+  border: 1px solid var(--ux-line);
+  max-width: 100%;
+}
+.u039-pill {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: var(--w);
+  border-radius: 999px;
+  background: #18181b;
+  box-shadow: 0 4px 12px -4px rgba(24, 24, 27, 0.28);
+  transform: translate3d(var(--x), 0, 0) scale(var(--sx), var(--sy));
+  transform-origin: center;
+  pointer-events: none;
+}
+.u039-tab {
+  position: relative;
+  z-index: 1;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ux-ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.22s;
+}
+.u039-tab:hover {
+  color: var(--ux-ink);
+}
+.u039-tab[aria-selected="true"] {
+  color: #ffffff;
+}
+
+/* ─── Lucian #041: 홈 파인 하단 탭 바 (모바일 & 스토어프론트 하단 바) ─── */
+.u041-nav {
+  --x: 48px;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-top: 8px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 1000;
+  pointer-events: none;
+}
+.u041-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--ux-line);
+  -webkit-mask: radial-gradient(circle 29px at var(--x) -2px, transparent 95%, #000 100%);
+  mask: radial-gradient(circle 29px at var(--x) -2px, transparent 95%, #000 100%);
+  pointer-events: auto;
+}
+.u041-bub {
+  position: absolute;
+  left: var(--x);
+  top: -10px;
+  width: 42px;
+  height: 42px;
+  margin-left: -21px;
+  border-radius: 50%;
+  background: var(--ux-grad);
+  box-shadow: 0 10px 20px -8px rgba(24, 24, 27, 0.48);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+.u041-nav.no-active .u041-bub {
+  opacity: 0;
+}
+.u041-nav.no-active .u041-bar {
+  -webkit-mask: none;
+  mask: none;
+}
+.u041-tabs {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  height: 56px;
+  margin: 0;
+  padding: 0 6px;
+  list-style: none;
+  pointer-events: auto;
+}
+.u041-tabs > li {
+  flex: 1;
+  display: flex;
+}
+.u041-tab {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--ux-ink-3);
+}
+.u041-ic {
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  width: 21px;
+  height: 21px;
+  margin-left: -10.5px;
+  transition: transform 0.52s var(--ux-spring), color 0.25s;
+}
+.u041-ic svg {
+  width: 100%;
+  height: 100%;
+}
+.u041-lab {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ux-ink-3);
+  letter-spacing: -0.02em;
+  transition: color 0.25s, font-weight 0.2s;
+}
+.u041-tab[aria-current="page"] .u041-ic {
+  transform: translateY(-18px);
+  color: #ffffff;
+}
+.u041-tab[aria-current="page"] .u041-lab {
+  color: #18181b;
+  font-weight: 800;
+}
+
+/* ─── Lucian #047: 기간 세그먼트 컨트롤 (매출 분석 탭) ─── */
+.u047-seg {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--ux-surface-2);
+  border: 1px solid var(--ux-line);
+}
+.u047-knob {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: var(--l, 4px);
+  right: var(--r, 75%);
+  border-radius: 8px;
+  background: var(--ux-surface);
+  box-shadow: 0 2px 8px -3px rgba(24, 24, 27, 0.14), 0 0 0 1px var(--ux-line);
+  pointer-events: none;
+}
+.u047-seg.go-r .u047-knob {
+  transition: right 0.28s var(--ux-ease), left 0.46s var(--ux-spring) 0.05s;
+}
+.u047-seg.go-l .u047-knob {
+  transition: left 0.28s var(--ux-ease), right 0.46s var(--ux-spring) 0.05s;
+}
+.u047-opt {
+  position: relative;
+  z-index: 1;
+  height: 34px;
+  border: 0;
+  padding: 0;
+  border-radius: 8px;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ux-ink-3);
+  cursor: pointer;
+  transition: color 0.25s;
+}
+.u047-opt[aria-checked="true"] {
+  color: var(--ux-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u212-site-hd,
+  .u041-ic,
+  .u047-knob {
+    transition: none !important;
   }
 }
 
 @layer components {
-
-  /* Minimalist Button */
   .btn-minimal {
-    @apply rounded-sm border border-border bg-white text-gray-800 text-[13px] uppercase tracking-wide transition-all duration-200 px-4 py-2 hover:border-black hover:text-black hover:bg-softBackground;
+    @apply rounded-md border border-border bg-white text-zinc-800 text-[13px] font-semibold tracking-tight transition-colors duration-200 px-4 py-2 hover:border-zinc-900 hover:text-zinc-950 hover:bg-softBackground;
   }
 
-  /* Catalog Product Card */
   .product-card {
-    @apply bg-white flex flex-col items-center justify-center transition-transform duration-200;
+    @apply bg-white flex flex-col items-stretch justify-start transition-colors duration-200;
   }
 
   .product-img {
-    @apply w-full object-cover bg-softBackground rounded-xl;
-    /* 왜 3/4(960x1280) 비율로 변경했는가: 오픈마켓 업로드 프로그램(nukki_remover.py)의 누끼 썸네일 및 스마트폰 촬영 원본이 3:4 세로형이므로 상하 및 우측 상단 코드번호 잘림을 방지하기 위함 */
+    @apply w-full object-cover bg-[#F4F3EF] rounded-lg border border-black/[0.04];
+    /* 오픈마켓 업로드 프로그램(nukki_remover.py)의 3:4 세로형 누끼/원본 비율 보존 */
     aspect-ratio: 3/4;
-    /* [수정] 조명 그림자 상쇄 및 보정 효과 강조 (대비 8%, 밝기 4% 증가, 입체감 부여) */
-    filter: contrast(1.08) brightness(1.04) drop-shadow(0 4px 6px rgba(0,0,0,0.08));
+    filter: contrast(1.04) brightness(1.02);
   }
 
   .product-img-archive {
-    @apply w-full object-contain object-top bg-softBackground rounded-xl mx-auto;
-    /* 왜 3/4(960x1280) 비율로 변경했는가: 오픈마켓 업로드 프로그램(nukki_remover.py)의 누끼 썸네일 및 스마트폰 촬영 원본이 3:4 세로형이므로 상하 및 우측 상단 코드번호 잘림을 방지하기 위함 */
+    @apply w-full object-contain object-top bg-[#F6F4EE] rounded-lg mx-auto;
     aspect-ratio: 3/4;
-    /* [수정] 조명 그림자 상쇄 및 보정 효과 강조 */
-    filter: contrast(1.08) brightness(1.04) drop-shadow(0 4px 6px rgba(0,0,0,0.08));
+    filter: contrast(1.04) brightness(1.02);
   }
 
-  /* Zoom Image */
   .zoom-container {
-    @apply relative w-full overflow-hidden rounded-xl bg-gray-50;
+    @apply relative w-full overflow-hidden rounded-xl bg-[#F4F3EF];
     aspect-ratio: 3/4;
   }
 
@@ -62,104 +322,25 @@
     }
   }
 
-  /* Archive Aesthetic (Clean & Premium Ivory) */
+  /* Dream Archive 에디토리얼 컬렉션 (외부 깨진 텍스처 및 과도한 반짝임 제거) */
   .vip-archive {
-    @apply bg-[#fdfbf7] text-[#333] min-h-screen relative transition-colors duration-700;
-    background-image:
-      radial-gradient(circle at 20% 30%, rgba(197, 160, 67, 0.03) 0%, transparent 40%),
-      radial-gradient(circle at 80% 70%, rgba(166, 130, 46, 0.03) 0%, transparent 40%),
-      url("https://www.transparenttextures.com/patterns/cream-paper.png");
+    @apply bg-[#FAF8F3] text-[#18181B] min-h-screen relative;
   }
 
   .vip-card {
-    @apply bg-white border border-[#c5a043]/20 shadow-lg transition-all duration-500 overflow-hidden rounded-md;
-    box-shadow: 0 4px 15px -5px rgba(197, 160, 67, 0.1);
+    @apply bg-white border border-[#D6C7A1]/60 transition-all duration-300 overflow-hidden rounded-lg p-1.5;
   }
 
   .vip-card:hover {
-    @apply border-gold/40 -translate-y-2;
-    box-shadow: 0 15px 35px -12px rgba(197, 160, 67, 0.25);
+    @apply border-[#A6822E];
   }
 
-  /* Gold Gradients & Effects */
   .text-gold {
-    background: linear-gradient(to right, #8d702a, #c5a043, #8d702a);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-size: 200% auto;
+    color: #8c6d23;
   }
 
-  .shimmer-gold {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .shimmer-gold::after {
-    content: "";
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(45deg,
-        transparent 45%,
-        rgba(255, 255, 255, 0.3) 50%,
-        transparent 55%);
-    transform: rotate(45deg);
-    animation: shimmer 3s infinite;
-  }
-
-  /* Premium Archive Badge */
   .vip-badge-premium {
-    @apply absolute bottom-3 left-3 px-3 py-1.5 bg-gradient-to-br from-[#d4af37] via-[#f9e5af] to-[#b8860b] 
-           text-black text-[10px] font-black tracking-[0.15em] uppercase shadow-xl z-20 rounded-[2px] border border-white/30;
-    font-family: serif;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.4);
-    animation: gold-pulse 3s infinite;
-  }
-
-  /* Navigation Highlight Animation */
-  .nav-archive-shimmer {
-    background: linear-gradient(90deg, #666 0%, #c5a043 50%, #666 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shimmer-text 3s linear infinite;
-  }
-
-  .nav-archive-shimmer-active {
-    background: linear-gradient(90deg, #000 0%, #c5a043 50%, #000 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shimmer-text 2s linear infinite;
-    border-bottom: 2px solid #c5a043 !important;
-  }
-}
-
-@keyframes gold-shine {
-  to {
-    background-position: 200% center;
-  }
-}
-
-@keyframes gold-pulse {
-  0% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.02); filter: brightness(1.1); }
-  100% { transform: scale(1); filter: brightness(1); }
-}
-
-@keyframes shimmer-text {
-  to { background-position: 200% center; }
-}
-
-@keyframes shimmer {
-  0% {
-    transform: translate(-100%, -100%) rotate(45deg);
-  }
-
-  100% {
-    transform: translate(100%, 100%) rotate(45deg);
+    @apply absolute top-2.5 left-2.5 px-2.5 py-1 bg-[#18181B]/90 text-[#F5E6C4] text-[9.5px] font-extrabold tracking-[0.14em] uppercase z-20 rounded;
   }
 }
 
@@ -185,7 +366,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #000;
+  background: #18181b;
   border: 2px solid #fff;
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
   cursor: pointer;
@@ -203,54 +384,46 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #000;
+  background: #18181b;
   border: 2px solid #fff;
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   pointer-events: auto;
 }
 
-/* 스크롤바 숨김 (브랜드 바) */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* 쿠폰 프린트 전용 스타일 */
+/* 쿠폰 프린트 전용 스타일 보존 */
 @media print {
-  /* 기본 UI 숨김 */
   body > * {
     visibility: hidden;
   }
-  
-  /* 프린트 영역만 표시 */
-  #coupon-print-area, #coupon-print-area * {
+  #coupon-print-area,
+  #coupon-print-area * {
     visibility: visible;
   }
-  
   #coupon-print-area {
     position: absolute;
     left: 0;
     top: 0;
-    width: 210mm; /* A4 width */
-    height: 297mm; /* A4 height */
+    width: 210mm;
+    height: 297mm;
     background: white;
     margin: 0;
     padding: 0;
   }
-
-  /* 배경색과 테두리를 강제로 인쇄하도록 설정 (크롬 등) */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-
   @page {
     size: A4;
-    margin: 0; /* 여백 제거하여 딱 맞게 */
+    margin: 0;
   }
 }

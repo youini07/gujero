@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import LucianCategoryPills from '../components/LucianCategoryPills';
 import { fetchProducts, fetchFilters, fetchTodayOrders, fetchFeaturedDiscounts, fetchNotices } from '../services/api';
 import { getTranslation, formatArrivalDate } from '../services/i18n';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,7 +41,7 @@ const CatalogPage = ({ lang }) => {
     const [totalPages, setTotalPages] = useState(savedState ? savedState.totalPages : 1);
     const [loading, setLoading] = useState(savedState ? false : true);
     const [todayOrders, setTodayOrders] = useState([]);
-    // [New] 팁별할인 상품 상태 (uc0c1단 노출용)
+    // [New] 특별할인 상품 상태 (상단 노출용)
     const [featuredDiscounts, setFeaturedDiscounts] = useState([]);
     // [New] 공지사항 상태
     const [notices, setNotices] = useState([]);
@@ -69,7 +70,7 @@ const CatalogPage = ({ lang }) => {
             }
         }).catch(() => { });
 
-        // [New] 팁별할인 상품 로드 (uc0c1단 노출용)
+        // [New] 특별할인 상품 로드 (상단 노출용)
         fetchFeaturedDiscounts().then(data => {
             setFeaturedDiscounts(data.featured || []);
         }).catch(() => {});
@@ -331,13 +332,17 @@ const CatalogPage = ({ lang }) => {
         } else {
             if (sliderMin > rangeMin) params.set('min_price', sliderMin.toString());
             else params.delete('min_price');
-            if (sliderMax < rangeMax) params.set('max_price', sliderMax.toString());
+            if (sliderMax < rangeMax) params.set('max_price', maxValToString(sliderMax));
             else params.delete('max_price');
         }
         params.delete('page');
         setSearchParams(params);
         setPage(1);
     }, [sliderMin, sliderMax, filters.priceRange, searchParams, setSearchParams]);
+
+    function maxValToString(v) {
+        return String(v);
+    }
 
     // 가슴단면 슬라이더 변경 완료 시 URL에 반영
     const applyWidthSlider = useCallback(() => {
@@ -385,6 +390,16 @@ const CatalogPage = ({ lang }) => {
         backgroundColor: '#f8fafc'
     } : {};
 
+    // 왜 상위 카테고리 탭을 Lucian #039 알약 탭으로 구성하는가:
+    // 375px 모바일 화면에서도 가로 스크롤과 탄성 스프링 인디케이터로 한 손 탐색성을 극대화하기 위함
+    const upperCategoryItems = [
+        { value: 'All', label: getTranslation(lang, 'upper_category_all') || '전체' },
+        ...(filters.upperCategories || []).map((uCat) => ({
+            value: uCat,
+            label: getTranslation(lang, uCat) || uCat,
+        })),
+    ];
+
     return (
         <div
             className={`transition-all duration-500 relative ${isArchive ? 'vip-archive pt-10 pb-20' : ''} ${isWinterCollection || isAccessoryCollection ? 'min-h-screen' : ''}`}
@@ -396,135 +411,117 @@ const CatalogPage = ({ lang }) => {
                 <link rel="canonical" href="https://www.gujero.com/" />
             </Helmet>
 
-            <div className={`${isArchive ? 'max-w-[1440px] px-2 md:px-4' : 'max-w-7xl px-4 md:px-8'} w-full mx-auto mt-6`}>
+            <div className={`${isArchive ? 'max-w-[1440px] px-3 md:px-4' : 'max-w-7xl px-3.5 md:px-8'} w-full mx-auto mt-5`}>
                 {/* 메인 상품 그리드 */}
                 <section className="w-full">
 
                     {/* [New] 공지사항 섹션 — 필터가 없는 기본 홈에서만 노출 */}
                     {!isArchive && !search && brand === 'All' && upperCategory === 'All' && category === 'All' && page === 1 && notices.length > 0 && (
-                        <div className="mb-10">
-                            <div className="flex flex-col gap-2.5">
-                                {notices.slice(0, 1).map((notice, idx) => (
-                                    <a 
-                                        key={idx} 
-                                        href={`/notice?lang=${lang}`} 
-                                        className="flex items-center group"
-                                    >
-                                        <span className="w-1 h-1 bg-black mr-3 shrink-0 rounded-full opacity-50 group-hover:opacity-100 transition-opacity"></span>
-                                        <span className="text-[15px] text-gray-600 font-medium group-hover:text-black transition-colors truncate flex-1">
-                                            <strong className="mr-3 text-black tracking-widest text-xs uppercase">NOTICE</strong>
-                                            {notice.title}
-                                        </span>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* [New] 도착 예정일 날짜 필터 (빨간 네모 영역) */}
-                    {showScheduled === 'true' && filters.arrivalDates?.length > 0 && (
-                        <div className="mb-8 animate-fadeIn">
-                            <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                <button
-                                    onClick={() => updateParam('arrival_date', 'All')}
-                                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap ${arrivalDate === 'All' ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}`}
+                        <div className="mb-5">
+                            {notices.slice(0, 1).map((notice, idx) => (
+                                <a 
+                                    key={idx} 
+                                    href={`/notice?lang=${lang}`} 
+                                    className="flex items-center group bg-[#FAF9F6] border border-[#E7E5E4] rounded-xl px-3.5 py-2.5 hover:border-[#18181B]/40 transition-colors"
                                 >
-                                    {getTranslation(lang, 'filter_arrival_all')}
-                                </button>
-                                {filters.arrivalDates.map(d => (
-                                    <button
-                                        key={d}
-                                        onClick={() => updateParam('arrival_date', d)}
-                                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap ${arrivalDate === d ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}`}
-                                    >
-                                        {formatArrivalDate(d, lang)}
-                                    </button>
-                                ))}
-                            </div>
+                                    <span className="text-[10px] font-extrabold text-[#18181B] tracking-[0.16em] uppercase mr-2.5 px-1.5 py-0.5 bg-white border border-[#E7E5E4] rounded shrink-0">
+                                        NOTICE
+                                    </span>
+                                    <span className="text-[13px] md:text-[14px] text-[#57534E] font-medium group-hover:text-[#18181B] transition-colors truncate flex-1">
+                                        {notice.title}
+                                    </span>
+                                    <svg className="w-4 h-4 text-[#A8A29E] group-hover:text-[#18181B] shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </a>
+                            ))}
                         </div>
                     )}
 
-                    {/* [New] 상단 필터: 성별 및 대분류 */}
+                    {/* [New] 도착 예정일 날짜 필터 */}
+                    {showScheduled === 'true' && filters.arrivalDates?.length > 0 && (
+                        <div className="mb-6 animate-fadeIn">
+                            <LucianCategoryPills
+                                ariaLabel="도착 예정일 필터"
+                                value={arrivalDate}
+                                onChange={(val) => updateParam('arrival_date', val)}
+                                items={[
+                                    { value: 'All', label: getTranslation(lang, 'filter_arrival_all') },
+                                    ...filters.arrivalDates.map((d) => ({ value: d, label: formatArrivalDate(d, lang) })),
+                                ]}
+                            />
+                        </div>
+                    )}
+
+                    {/* [New] 상단 필터: 검색 + 사이즈 + 상위 카테고리 알약 탭 */}
                     {!isArchive && (
-                        <div className="mb-6 flex flex-col gap-3 animate-fadeIn">
-
-
-                            {/* [New] 검색 및 사이즈 필터 영역 */}
-                            <div className="flex flex-col md:flex-row gap-4 mb-3 bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                        <div className="mb-5 flex flex-col gap-3.5 animate-fadeIn">
+                            {/* 검색 및 사이즈 필터 영역 */}
+                            <div className="flex flex-col md:flex-row gap-3 md:gap-5 bg-[#FAF9F6] p-3.5 rounded-xl border border-[#E7E5E4]">
                                 {/* 검색 */}
                                 <form onSubmit={handleSearchSubmit} className="flex flex-1 items-center gap-2">
-                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider shrink-0 w-16">SEARCH</span>
+                                    <span className="text-[10px] font-bold text-[#78716C] uppercase tracking-[0.14em] shrink-0 w-14">SEARCH</span>
                                     <input 
                                         type="text" 
                                         value={searchInput}
                                         onChange={(e) => setSearchInput(e.target.value)}
                                         placeholder={getTranslation(lang, 'search_placeholder') || (lang === 'TH' ? 'ค้นหาชื่อสินค้า / แบรนด์ / รหัส' : lang === 'EN' ? 'Search code, brand, or name' : '상품코드 또는 상품명 검색')}
-                                        className="w-full text-[13px] border-b border-gray-200 px-2 py-1 focus:outline-none focus:border-black transition-colors bg-transparent placeholder-gray-300"
+                                        className="w-full text-[13px] bg-white border border-[#E7E5E4] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#18181B] transition-colors placeholder-[#A8A29E] text-[#18181B]"
                                     />
-                                    <button type="submit" className="shrink-0 px-3 py-1 bg-black text-white text-[11px] font-bold rounded hover:bg-gray-800 transition-colors">
+                                    <button type="submit" className="shrink-0 px-3 py-1.5 bg-[#18181B] text-white text-[11px] font-bold rounded-lg hover:bg-[#27272A] transition-colors">
                                         {getTranslation(lang, 'search_btn') || (lang === 'TH' ? 'ค้นหา' : lang === 'EN' ? 'Search' : '검색')}
                                     </button>
                                 </form>
 
                                 {/* 사이즈(가슴단면) 필터 */}
                                 <div className="flex flex-1 items-center gap-2">
-                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider shrink-0 w-16">SIZE (cm)</span>
-                                    <div className="flex items-center gap-1 flex-1">
+                                    <span className="text-[10px] font-bold text-[#78716C] uppercase tracking-[0.14em] shrink-0 w-14">SIZE(cm)</span>
+                                    <div className="flex items-center gap-1.5 flex-1 tabular-nums">
                                         <input 
                                             type="number" 
                                             value={widthSliderMin}
                                             onChange={(e) => setWidthSliderMin(e.target.value)}
                                             placeholder="Min"
-                                            className="w-full text-[13px] border-b border-gray-200 px-2 py-1 focus:outline-none focus:border-black transition-colors text-center bg-transparent placeholder-gray-300"
+                                            className="w-full text-[13px] bg-white border border-[#E7E5E4] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#18181B] transition-colors text-center placeholder-[#A8A29E] text-[#18181B]"
                                         />
-                                        <span className="text-gray-300 text-xs">~</span>
+                                        <span className="text-[#A8A29E] text-xs">~</span>
                                         <input 
                                             type="number" 
                                             value={widthSliderMax}
                                             onChange={(e) => setWidthSliderMax(e.target.value)}
                                             placeholder="Max"
-                                            className="w-full text-[13px] border-b border-gray-200 px-2 py-1 focus:outline-none focus:border-black transition-colors text-center bg-transparent placeholder-gray-300"
+                                            className="w-full text-[13px] bg-white border border-[#E7E5E4] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#18181B] transition-colors text-center placeholder-[#A8A29E] text-[#18181B]"
                                         />
                                     </div>
-                                    <button onClick={applyWidthSlider} className="shrink-0 px-3 py-1 bg-black text-white text-[11px] font-bold rounded hover:bg-gray-800 transition-colors">
+                                    <button onClick={applyWidthSlider} className="shrink-0 px-3 py-1.5 bg-[#18181B] text-white text-[11px] font-bold rounded-lg hover:bg-[#27272A] transition-colors">
                                         {lang === 'TH' ? 'ตกลง' : lang === 'EN' ? 'Apply' : '적용'}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* 상위 카테고리 탭 */}
-                            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                <button
-                                    onClick={() => updateParam('upper_category', 'All')}
-                                    className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all border whitespace-nowrap ${upperCategory === 'All' ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}`}
-                                >
-                                    {getTranslation(lang, 'upper_category_all')}
-                                </button>
-                                {filters.upperCategories && filters.upperCategories.map(uCat => (
-                                    <button
-                                        key={uCat}
-                                        onClick={() => updateParam('upper_category', uCat)}
-                                        className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all border whitespace-nowrap ${upperCategory === uCat ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'}`}
-                                    >
-                                        {getTranslation(lang, uCat) || uCat}
-                                    </button>
-                                ))}
-                            </div>
+                            {/* 상위 카테고리 탭 (Lucian #039 미끄러지는 알약 탭) */}
+                            <LucianCategoryPills
+                                ariaLabel="상위 카테고리 선택"
+                                value={upperCategory}
+                                onChange={(val) => updateParam('upper_category', val)}
+                                items={upperCategoryItems}
+                            />
                         </div>
                     )}
 
                     {/* [New] 하위 카테고리 탭 (상위 카테고리 선택 시) */}
                     {upperCategory !== 'All' && !isArchive && (
-                        <div className="mb-6 animate-fadeIn">
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="h-4 w-[1px] bg-gray-300 mx-2 hidden"></div>
-                                <span className="font-black text-lg tracking-wider">{getTranslation(lang, upperCategory) || upperCategory} {getTranslation(lang, 'category_detail') || '상세분류'}</span>
+                        <div className="mb-5 animate-fadeIn">
+                            <div className="flex items-center gap-2 mb-2.5">
+                                <span className="font-extrabold text-[15px] tracking-tight text-[#18181B]">
+                                    {getTranslation(lang, upperCategory) || upperCategory} {getTranslation(lang, 'category_detail') || '상세분류'}
+                                </span>
                             </div>
                             {filters.categoryMap && filters.categoryMap[upperCategory] && filters.categoryMap[upperCategory].length > 0 && (
-                                <div className="flex flex-wrap gap-2 pb-2">
+                                <div className="flex flex-wrap gap-1.5 pb-1">
                                     <button
                                         onClick={() => updateParam('category', 'All')}
-                                        className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all border ${category === 'All' ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200 hover:border-black'}`}
+                                        className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all border ${category === 'All' ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#57534E] border-[#E7E5E4] hover:border-[#18181B]'}`}
                                     >
                                         {getTranslation(lang, 'see_all') || '전체보기'}
                                     </button>
@@ -532,7 +529,7 @@ const CatalogPage = ({ lang }) => {
                                         <button
                                             key={cat}
                                             onClick={() => updateParam('category', cat)}
-                                            className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all border ${category === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200 hover:border-black'}`}
+                                            className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all border ${category === cat ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#57534E] border-[#E7E5E4] hover:border-[#18181B]'}`}
                                         >
                                             {getTranslation(lang, cat.replace('여성 ', '')) || cat}
                                         </button>
@@ -546,31 +543,31 @@ const CatalogPage = ({ lang }) => {
                         <>
                         <button 
                             onClick={() => window.location.href = `/vendors?lang=${lang}`}
-                            className="mb-4 flex items-center gap-2 text-gray-600 hover:text-black font-semibold transition-colors"
+                            className="mb-3.5 flex items-center gap-1.5 text-[13px] text-[#78716C] hover:text-[#18181B] font-semibold transition-colors"
                         >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M19 12H5M12 19l-7-7 7-7"/>
                             </svg>
                             {lang === 'TH' ? 'กลับไปยังรายชื่อร้านค้า' : lang === 'EN' ? 'Back to Stores' : '매장 목록으로 돌아가기'}
                         </button>
-                        <div className="mb-6 animate-fadeIn bg-[#FFFDF9] text-gray-900 rounded-2xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-amber-900/10">
-                            <div className="flex flex-col md:flex-row p-6 md:p-8 gap-6 md:gap-8 items-start md:items-center">
+                        <div className="mb-6 animate-fadeIn bg-[#FAF9F6] text-[#18181B] rounded-2xl overflow-hidden border border-[#E7E5E4]">
+                            <div className="flex flex-col md:flex-row p-5 md:p-7 gap-5 items-start md:items-center">
                                 <div className="flex-1">
-                                    <h2 className="text-3xl md:text-4xl font-black mb-3 text-gray-900">
+                                    <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[#78716C] mb-1">Partner Store</span>
+                                    <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2.5 text-[#18181B]">
                                         {vendorProfile.store_name || vendorProfile.vendor_code || (lang === 'TH' ? 'ร้านค้าวินเทจ' : lang === 'EN' ? 'Vintage Store' : '상호명 미등록')}
                                     </h2>
                                     {vendorProfile.description && (
-                                        <p className="text-sm md:text-base text-gray-600 whitespace-pre-wrap mb-5 leading-relaxed">{vendorProfile.description}</p>
+                                        <p className="text-xs md:text-sm text-[#57534E] whitespace-pre-wrap mb-4 leading-relaxed">{vendorProfile.description}</p>
                                     )}
                                     {vendorProfile.rules && (
-                                        <div className="bg-black/5 backdrop-blur-sm p-4 rounded-xl text-xs md:text-sm text-gray-600 whitespace-pre-wrap border border-black/5">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className="text-lg">📌</span>
-                                                <span className="font-bold text-gray-800 tracking-wide">
+                                        <div className="bg-white p-3.5 rounded-xl text-xs md:text-sm text-[#57534E] whitespace-pre-wrap border border-[#E7E5E4]">
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                <span className="font-bold text-[#18181B] tracking-tight text-xs">
                                                     {lang === 'TH' ? 'ประกาศ / นโยบายร้านค้า' : lang === 'EN' ? 'Store Notice / Policy' : '매장 공지 / 정책'}
                                                 </span>
                                             </div>
-                                            <div className="leading-relaxed pl-1">{vendorProfile.rules}</div>
+                                            <div className="leading-relaxed">{vendorProfile.rules}</div>
                                         </div>
                                     )}
                                 </div>
@@ -578,29 +575,30 @@ const CatalogPage = ({ lang }) => {
                         </div>
                         </>
                     )}
-                    <div className={`flex justify-between items-center mb-6 border-b pb-2 ${isArchive ? 'border-black/10' : 'border-border'}`}>
+
+                    <div className={`flex justify-between items-center mb-5 border-b pb-2.5 ${isArchive ? 'border-black/10' : 'border-[#E7E5E4]'}`}>
                         <div className={`flex-1 ${isArchive ? 'py-4' : ''}`}>
                             {isArchive ? (
                                 <div className="text-center space-y-2">
-                                    <h1 className="text-4xl md:text-5xl font-black tracking-[0.25em] text-gold-deep italic mb-1" style={{ fontFamily: 'serif' }}>
+                                    <h1 className="text-3xl md:text-5xl font-black tracking-[0.22em] text-gold-deep italic mb-1" style={{ fontFamily: 'serif' }}>
                                         822 ARCHIVE
                                     </h1>
-                                    <p className="text-[13px] font-medium uppercase tracking-[0.3em] text-gray-500">
+                                    <p className="text-[12px] font-medium uppercase tracking-[0.28em] text-[#78716C]">
                                         Curated Luxury & Timeless Collection
                                     </p>
                                     <div className="w-24 h-[1px] bg-gold/30 mx-auto mt-4"></div>
                                 </div>
                             ) : (
-                                <div className="text-xl font-black uppercase tracking-[0.2em] text-sm tracking-widest">
+                                <div className="text-[12px] md:text-[13px] font-extrabold uppercase tracking-[0.14em] text-[#18181B] tabular-nums">
                                     {getTranslation(lang, 'total_items')?.replace('{total}', totalItems)}
                                 </div>
                             )}
                         </div>
-                        <div className="flex flex-1 justify-end items-center px-4">
+                        <div className="flex justify-end items-center shrink-0">
                             {!isArchive && (
                                 <button
                                     onClick={() => updateParam('hide_so', hideSoldOut === 'true' ? 'false' : 'true')}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${hideSoldOut === 'true' ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-300 hover:border-black'}`}
+                                    className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all border ${hideSoldOut === 'true' ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#57534E] border-[#E7E5E4] hover:border-[#18181B]'}`}
                                 >
                                     {hideSoldOut === 'true' ? (lang === 'TH' ? 'แสดงสินค้าหมด' : lang === 'EN' ? 'Show Sold Out' : '품절 상품 보기') : (lang === 'TH' ? 'ซ่อนสินค้าหมด' : lang === 'EN' ? 'Hide Sold Out' : '품절 상품 숨기기')}
                                 </button>
@@ -609,18 +607,19 @@ const CatalogPage = ({ lang }) => {
                     </div>
 
                     {!loading && products.length === 0 ? (
-                            <div className="text-center py-20 text-gray-500 font-medium">{getTranslation(lang, 'no_products')}</div>
-                        ) : loading ? (
+                        <div className="text-center py-20 text-[#78716C] font-medium text-sm">{getTranslation(lang, 'no_products')}</div>
+                    ) : loading ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
-                            <div className="ml-3 font-medium">{getTranslation(lang, 'loading')}</div>
+                            <div className="w-8 h-8 border-2 border-[#E7E5E4] border-t-[#18181B] rounded-full animate-spin"></div>
+                            <div className="ml-3 text-sm font-medium text-[#57534E]">{getTranslation(lang, 'loading')}</div>
                         </div>
                     ) : (
                         <>
                             {products.length === 0 ? (
-                                <div className="text-center py-20 text-gray-500">{getTranslation(lang, 'no_products')}</div>
+                                <div className="text-center py-20 text-[#78716C] text-sm">{getTranslation(lang, 'no_products')}</div>
                             ) : (
-                                <div className={`grid gap-x-8 gap-y-12 ${isArchive ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4'}`}>
+                                /* 왜 모바일 가로 간격을 gap-x-3.5로 줄였는가: 375px 화면에서 2열 상품 이미지가 좁게 눌리지 않고 시원하게 보이도록 하기 위함 */
+                                <div className="grid gap-x-3.5 gap-y-7 md:gap-x-6 md:gap-y-10 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
                                     {products.map(p => (
                                         <ProductCard 
                                             key={p.code} 
@@ -637,11 +636,11 @@ const CatalogPage = ({ lang }) => {
                             {/* 무한 스크롤 감지 요소 */}
                             {hasMore && (
                                 <div ref={observerTarget} className="h-20 flex items-center justify-center mt-8 mb-8">
-                                    <div className="w-8 h-8 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+                                    <div className="w-7 h-7 border-2 border-[#E7E5E4] border-t-[#18181B] rounded-full animate-spin"></div>
                                 </div>
                             )}
                             {!hasMore && products.length > 0 && (
-                                <div className="text-center py-12 text-gray-400 text-sm tracking-widest uppercase">
+                                <div className="text-center py-12 text-[#A8A29E] text-xs font-bold tracking-[0.22em] uppercase">
                                     End of Catalog
                                 </div>
                             )}

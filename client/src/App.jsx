@@ -123,11 +123,11 @@ function App() {
           <BrowserRouter>
             <LangSyncHandler lang={lang} setLang={setLang} />
           <AnalyticsTracker />
-          {/* 모바일 특화 레이아웃 (배경은 옅은 회색, 중앙 정렬된 600px 화면) */}
-          <div className="bg-gray-100 min-h-screen w-full flex justify-center">
-            <div className="relative w-full max-w-[600px] sm:landscape:max-w-[900px] md:max-w-[900px] lg:max-w-[1200px] bg-white min-h-screen flex flex-col pt-[130px] md:pt-[80px] shadow-lg">
+          {/* 에디토리얼 커머스 레이아웃 (웜 스톤 캔버스 + 1px 정밀 보더 + 정확한 헤더 높이 매칭) */}
+          <div className="bg-[#F6F5F2] min-h-screen w-full flex justify-center">
+            <div className="relative w-full max-w-[600px] sm:landscape:max-w-[900px] md:max-w-[900px] lg:max-w-[1200px] bg-white min-h-screen flex flex-col pt-[64px] md:pt-[68px] border-x border-[#E7E5E4]">
               <Header lang={lang} setLang={setLang} />
-              <main className="flex-1 w-full pb-[80px] overflow-x-hidden">
+              <main className="flex-1 w-full pb-[84px] overflow-x-hidden">
                 <Routes>
                   <Route path="/" element={<HomeRouter lang={lang} />} />
                   <Route path="/vendors" element={<VendorListPage lang={lang} />} />

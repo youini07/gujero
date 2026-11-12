@@ -171,10 +171,9 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                         </svg>
                     </button>
 
-                    {/* 장바구니 담기 버튼 (호버 시 표시, 가격 유효 + 품절/예약 아닌 경우만) */}
+                    {/* 일반 장바구니 버튼 (모바일 터치 화면에서도 보이며 PC 호버 시 강조되도록 개선) */}
                     {hasValidPrice && !isSoldOut && !isReserved && (
                         <div className="absolute bottom-2 right-2 flex flex-col gap-1 items-end z-20">
-                            {/* [Admin] 주문 직접 담기 버튼 */}
                             {isAdmin && (
                                 <div className="relative">
                                     <button
@@ -183,20 +182,19 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                                             e.stopPropagation();
                                             setShowOrderDropdown(!showOrderDropdown);
                                         }}
-                                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all duration-200 border border-gold-deep 
-                                            ${addStatus === 'success' ? 'bg-green-500 border-green-500 text-white' : 
-                                              addStatus === 'error' ? 'bg-red-500 border-red-500 text-white' :
-                                              'bg-white text-gold-deep opacity-0 group-hover:opacity-100 hover:bg-gold-deep hover:text-white'}`}
+                                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all duration-200 border border-[#8C6D23] 
+                                            ${addStatus === 'success' ? 'bg-emerald-600 border-emerald-600 text-white' : 
+                                              addStatus === 'error' ? 'bg-rose-600 border-rose-600 text-white' :
+                                              'bg-white/95 text-[#8C6D23] md:opacity-0 md:group-hover:opacity-100 hover:bg-[#8C6D23] hover:text-white'}`}
                                     >
                                         {addStatus === 'success' ? getTranslation(lang, 'admin_add_success') : 
                                          addStatus === 'error' ? getTranslation(lang, 'admin_add_error') :
                                          getTranslation(lang, 'admin_add_to_order')}
                                     </button>
 
-                                    {/* 주문 선택 드롭다운 */}
                                     {showOrderDropdown && (
-                                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                                            <div className="p-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500 uppercase flex justify-between">
+                                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-[#E7E5E4] rounded-xl shadow-xl overflow-hidden">
+                                            <div className="p-2 bg-[#FAF9F6] border-b border-[#E7E5E4] text-[10px] font-bold text-zinc-500 uppercase flex justify-between">
                                                 <span>{getTranslation(lang, 'admin_select_order')}</span>
                                                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowOrderDropdown(false); }}>✕</button>
                                             </div>
@@ -206,14 +204,14 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                                                         <button
                                                             key={order.order_number}
                                                             onClick={(e) => handleAddToOrder(e, order.order_number)}
-                                                            className="w-full text-left px-3 py-2 text-[12px] hover:bg-gray-100 transition-colors border-b border-gray-50 last:border-0 flex flex-col"
+                                                            className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#FAF9F6] transition-colors border-b border-zinc-100 last:border-0 flex flex-col"
                                                         >
-                                                            <span className="font-bold text-black">{order.customer_name}</span>
-                                                            <span className="text-[10px] text-gray-500 tracking-tight">#{String(order.order_number).slice(-4)}</span>
+                                                            <span className="font-bold text-[#18181B]">{order.customer_name}</span>
+                                                            <span className="text-[10px] text-zinc-500 tabular-nums">#{String(order.order_number).slice(-4)}</span>
                                                         </button>
                                                     ))
                                                 ) : (
-                                                    <div className="p-3 text-[11px] text-center text-gray-400">
+                                                    <div className="p-3 text-[11px] text-center text-zinc-400">
                                                         {getTranslation(lang, 'admin_no_today_orders')}
                                                     </div>
                                                 )}
@@ -223,13 +221,12 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                                 </div>
                             )}
 
-                            {/* 일반 장바구니 버튼 */}
                             <button
                                 onClick={handleAddToCart}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 shadow-md
+                                className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all duration-200
                                     ${added
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-black/80 text-white opacity-0 group-hover:opacity-100 hover:bg-black'
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-[#18181B]/85 text-white md:opacity-0 md:group-hover:opacity-100 hover:bg-[#18181B]'
                                     }`}
                             >
                                 {added ? getTranslation(lang, 'added_to_cart') : getTranslation(lang, 'add_to_cart_short')}
@@ -237,14 +234,14 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                         </div>
                     )}
                 </div>
-                <div className={`text-center pt-3 pb-4 px-2 overflow-hidden`}>
+                <div className="text-left pt-2.5 pb-3 px-0.5 overflow-hidden">
                     {/* 1. 브랜드명 */}
-                    <div className="text-[11px] uppercase tracking-wider text-[#8b9bb4] truncate w-full px-1">
-                        {brand}
+                    <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-zinc-500 truncate w-full">
+                        {brand || 'ARCHIVE'}
                     </div>
 
                     {/* 2. 언어별 상품명 및 하위카테고리 */}
-                    <div className="text-[12px] font-medium text-black mt-1 truncate w-full px-1">
+                    <div className="text-[12.5px] font-medium text-[#18181B] mt-0.5 truncate w-full leading-snug">
                         {lang === 'TH'
                             ? (name_th || (category ? getTranslation(lang, String(category).trim()) : '') || name_en || name)
                             : lang === 'EN'
@@ -252,16 +249,16 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                                 : (name || (category ? getTranslation(lang, String(category).trim()) : ''))}
                     </div>
                     {category && (
-                        <div className="text-[10px] text-gray-400 mt-0.5 truncate w-full px-1">
+                        <div className="text-[10.5px] text-zinc-400 mt-0.5 truncate w-full">
                             {getTranslation(lang, String(category).trim())}
                         </div>
                     )}
 
                     {isArchive && (
-                        <div className="flex flex-col gap-1 text-[11px] text-[#555] mt-2 mb-1 border-y border-black/5 py-2 px-1">
-                            <div className="truncate"><span className="font-bold text-black">{getTranslation(lang, 'filter_size')}:</span> <span className="text-black font-medium">{product.size || '-'}</span></div>
+                        <div className="flex flex-col gap-0.5 text-[11px] text-zinc-600 mt-2 mb-1 border-y border-[#E7E5E4] py-1.5">
+                            <div className="truncate"><span className="font-bold text-[#18181B]">{getTranslation(lang, 'filter_size')}:</span> <span className="text-[#18181B] font-medium">{product.size || '-'}</span></div>
                             {product.measured_size && (
-                                <div className="truncate"><span className="font-bold text-black">{lang === 'KR' ? '실측' : lang === 'TH' ? 'วัดจริง' : 'Actual'}:</span> <span className="text-black font-medium">
+                                <div className="truncate"><span className="font-bold text-[#18181B]">{lang === 'KR' ? '실측' : lang === 'TH' ? 'วัดจริง' : 'Actual'}:</span> <span className="text-[#18181B] font-medium tabular-nums">
                                     {String(product.measured_size).split(',').map(s => {
                                         const val = parseFloat(s);
                                         return isNaN(val) ? s.trim() : `${val}cm (${Number((val / 2.54).toFixed(1))}")`;
@@ -271,24 +268,24 @@ const ProductCard = ({ product, lang, isArchive: isArchivePage, isAdmin, todayOr
                         </div>
                     )}
 
-                    {/* 3. 출고가 (취소선) */}
-                    <div className="text-[11px] text-[#8b9bb4] line-through mt-1.5 leading-none min-h-[11px] truncate w-full px-1">
-                        {!isNaN(Number(original_price)) && Number(original_price) > 0 
-                            ? `${getTranslation(lang, 'currency')}${Number(original_price).toLocaleString()}` 
-                            : ''}
-                    </div>
-
-                    {/* 4. 판매가 (굵게) */}
-                    <div className="text-[16px] font-bold text-black mt-1 leading-none flex justify-center items-center gap-1.5">
+                    {/* 3. 출고가 & 판매가 (고정폭 숫자 정렬) */}
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-1.5 tabular-nums">
                         {discount_rate > 0 && !isNaN(Number(price)) && (
-                            <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm leading-none mr-1">
-                                -{discount_rate}%
+                            <span className="text-rose-600 text-[12px] font-extrabold leading-none">
+                                {discount_rate}%
                             </span>
                         )}
-                        {!isNaN(Number(price)) && String(price).trim() !== ''
-                            ? `${getTranslation(lang, 'currency')}${discount_rate > 0 ? Math.round(Number(price) * (1 - discount_rate / 100)).toLocaleString() : Number(price).toLocaleString()}`
-                            : formatArrivalDate(product.arrival_date, lang)
-                        }
+                        <span className="text-[15px] font-extrabold text-[#18181B] leading-none">
+                            {!isNaN(Number(price)) && String(price).trim() !== ''
+                                ? `${getTranslation(lang, 'currency')}${discount_rate > 0 ? Math.round(Number(price) * (1 - discount_rate / 100)).toLocaleString() : Number(price).toLocaleString()}`
+                                : formatArrivalDate(product.arrival_date, lang)
+                            }
+                        </span>
+                        {!isNaN(Number(original_price)) && Number(original_price) > 0 && (
+                            <span className="text-[11px] text-zinc-400 line-through leading-none">
+                                {`${getTranslation(lang, 'currency')}${Number(original_price).toLocaleString()}`}
+                            </span>
+                        )}
                     </div>
                 </div>
             </Link>
