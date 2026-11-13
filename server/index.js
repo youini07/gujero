@@ -2318,8 +2318,16 @@ app.get('/api/products', async (req, res) => {
             let brandStr = Array.isArray(brand) ? brand.join(',') : brand;
             const brandList = brandStr.split(',').map(b => b.trim()).filter(b => b);
             const allAliases = [];
+            const groupEntries = Object.entries(cache.groupMap || {});
             brandList.forEach(b => {
-                const aliases = cache.groupMap[b];
+                // 왜 대소문자 무시 폴백을 추가하는가:
+                // 관리자가 프리셋('Stone Island', 'C.P. Company')으로 미리 그룹을 만들어둔 뒤
+                // 나중에 입고된 상품의 대표 브랜드 키가 'STONE ISLAND' 등으로 생성되더라도 모든 별칭(Alias)을 빠짐없이 매칭하기 위함입니다.
+                let aliases = cache.groupMap[b];
+                if (!aliases) {
+                    const matched = groupEntries.find(([k]) => k.toLowerCase() === b.toLowerCase());
+                    if (matched) aliases = matched[1];
+                }
                 if (aliases && aliases.length > 0) {
                     aliases.forEach(a => { if (a) allAliases.push(a); });
                 } else {
@@ -5439,9 +5447,46 @@ const CATEGORY_MAPPINGS = {
 // ─── 1. 브랜드 카테고리별 분류 API ───
 app.get('/api/brands/categorized', async (req, res) => {
     try {
+        const includePreset = req.query.include_preset === 'true';
         const cache = await getBrandCache();
-        const allBrands = cache.allBrands;
-        
+        const brandPoolMap = new Map(); // lowerCase -> displayName
+
+        (cache.allBrands || []).forEach((b) => {
+            const trimmed = String(b || '').trim();
+            if (trimmed) brandPoolMap.set(trimmed.toLowerCase(), trimmed);
+        });
+
+        // 관리자 모드(include_preset=true)일 때는 품절/입고예정 브랜드 및 표준 사전 브랜드까지 선택지에 포함하여
+        // 재고가 일시 품절이거나 입고 전인 브랜드(예: Stone Island)도 한 그룹 안에 자유롭게 묶을 수 있도록 지원
+        if (includePreset) {
+            const dbBrands = await new Promise((resolve) => {
+                db.all(
+                    `SELECT DISTINCT TRIM(brand) as brand FROM products 
+                     WHERE brand IS NOT NULL AND TRIM(brand) != '' AND LOWER(TRIM(brand)) != 'nan'`,
+                    [],
+                    (err, rows) => {
+                        if (err || !rows) return resolve([]);
+                        resolve(rows.map((r) => r.brand).filter(Boolean));
+                    }
+                );
+            });
+            dbBrands.forEach((b) => {
+                if (!brandPoolMap.has(b.toLowerCase())) {
+                    brandPoolMap.set(b.toLowerCase(), b);
+                }
+            });
+            Object.values(CATEGORY_MAPPINGS).flat().forEach((b) => {
+                const trimmed = String(b || '').trim();
+                if (trimmed && !brandPoolMap.has(trimmed.toLowerCase())) {
+                    brandPoolMap.set(trimmed.toLowerCase(), trimmed);
+                }
+            });
+        }
+
+        const targetBrands = Array.from(brandPoolMap.values()).sort((a, b) =>
+            a.localeCompare(b, 'en', { sensitivity: 'base' })
+        );
+
         // 카테고리별로 브랜드 담기
         const categorized = {
             '하이패션/럭셔리': [],
@@ -5456,7 +5501,7 @@ app.get('/api/brands/categorized', async (req, res) => {
         };
         
         // 매핑 로직
-        allBrands.forEach(brand => {
+        targetBrands.forEach(brand => {
             let matchedCategory = '기타';
             for (const [catName, brandList] of Object.entries(CATEGORY_MAPPINGS)) {
                 if (brandList.some(b => brand.toLowerCase() === b.toLowerCase())) {
@@ -5467,12 +5512,38 @@ app.get('/api/brands/categorized', async (req, res) => {
             categorized[matchedCategory].push(brand);
         });
 
-        res.json({ success: true, categorized, topBrands: cache.topBrands });
+        res.json({
+            success: true,
+            categorized,
+            topBrands: cache.topBrands,
+            activeBrands: cache.allBrands || [],
+        });
     } catch (err) {
         console.error('Categorized brands error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
+/**
+ * 추천 브랜드 그룹에 전달된 단일/다중 브랜드 입력(배열 또는 쉼표 구분 문자열)을
+ * 중복 없는 표준 문자열('Brand A, Brand B')로 정규화합니다.
+ */
+function normalizeRecommendedBrandNames(rawInput) {
+    const rawList = Array.isArray(rawInput)
+        ? rawInput
+        : String(rawInput || '').split(',');
+    const seen = new Set();
+    const result = [];
+    rawList.forEach((item) => {
+        const cleaned = String(item || '').trim();
+        if (!cleaned) return;
+        const key = cleaned.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        result.push(cleaned);
+    });
+    return result.join(', ');
+}
 
 // ─── 2. 홈 화면 테마 API ───
 app.get('/api/recommended_brands', (req, res) => {
@@ -5483,29 +5554,38 @@ app.get('/api/recommended_brands', (req, res) => {
 });
 
 app.post('/api/admin/recommended_brands', (req, res) => {
-    const { group_name, brand_name, description_kr, description_en, description_th, hero_image_url, logo_url, sort_order } = req.body;
-    if (!group_name || !brand_name) return res.status(400).json({ error: 'BAD_REQUEST', message: '그룹명과 브랜드명은 필수입니다.' });
+    const { group_name, brand_name, brand_names, description_kr, description_en, description_th, hero_image_url, logo_url, sort_order } = req.body;
+    const cleanGroup = String(group_name || '').trim();
+    const normalizedBrands = normalizeRecommendedBrandNames(brand_names !== undefined ? brand_names : brand_name);
+    if (!cleanGroup || !normalizedBrands) {
+        return res.status(400).json({ error: 'BAD_REQUEST', message: '그룹명과 최소 1개 이상의 브랜드 선택은 필수입니다.' });
+    }
 
     db.run(
         'INSERT INTO recommended_brands (group_name, brand_name, description_kr, description_en, description_th, hero_image_url, logo_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [group_name, brand_name, description_kr || '', description_en || '', description_th || '', hero_image_url || '', logo_url || '', sort_order || 0],
+        [cleanGroup, normalizedBrands, description_kr || '', description_en || '', description_th || '', hero_image_url || '', logo_url || '', sort_order || 0],
         function(err) {
             if (err) return res.status(500).json({ error: 'DB Error', message: err.message });
-            res.json({ success: true, id: this.lastID });
+            res.json({ success: true, id: this.lastID, brand_name: normalizedBrands });
         }
     );
 });
 
 app.put('/api/admin/recommended_brands/:id', (req, res) => {
     const { id } = req.params;
-    const { group_name, brand_name, description_kr, description_en, description_th, hero_image_url, logo_url, sort_order } = req.body;
+    const { group_name, brand_name, brand_names, description_kr, description_en, description_th, hero_image_url, logo_url, sort_order } = req.body;
+    const cleanGroup = String(group_name || '').trim();
+    const normalizedBrands = normalizeRecommendedBrandNames(brand_names !== undefined ? brand_names : brand_name);
+    if (!cleanGroup || !normalizedBrands) {
+        return res.status(400).json({ error: 'BAD_REQUEST', message: '그룹명과 최소 1개 이상의 브랜드 선택은 필수입니다.' });
+    }
     
     db.run(
         'UPDATE recommended_brands SET group_name=?, brand_name=?, description_kr=?, description_en=?, description_th=?, hero_image_url=?, logo_url=?, sort_order=? WHERE id=?',
-        [group_name, brand_name, description_kr || '', description_en || '', description_th || '', hero_image_url || '', logo_url || '', sort_order || 0, id],
+        [cleanGroup, normalizedBrands, description_kr || '', description_en || '', description_th || '', hero_image_url || '', logo_url || '', sort_order || 0, id],
         function(err) {
             if (err) return res.status(500).json({ error: 'DB Error', message: err.message });
-            res.json({ success: true, changes: this.changes });
+            res.json({ success: true, changes: this.changes, brand_name: normalizedBrands });
         }
     );
 });

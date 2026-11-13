@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+/* eslint-disable react/prop-types */
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import RecommendedBrandsList from '../components/RecommendedBrandsList';
 import { fetchProducts, fetchTodayOrders } from '../services/api';
 import { getTranslation } from '../services/i18n';
+import { parseBrandNames, formatBrandGroupTitle } from '../services/brandGroup';
 import { useAuth } from '../contexts/AuthContext';
 
 const CATEGORY_NAMES = [
@@ -37,6 +39,16 @@ const BrandMainPage = ({ lang }) => {
     
     const observerTarget = useRef(null);
 
+    // 추천 브랜드 카드에서 [전체보기]로 진입했을 때 전달되는 그룹명 및 다중 브랜드 목록 파싱
+    const selectedGroupTitle = searchParams.get('group') || '';
+    const selectedBrandList = useMemo(
+        () => (selectedBrand && selectedBrand !== 'All' ? parseBrandNames(selectedBrand) : []),
+        [selectedBrand]
+    );
+    const isMultiSelected = selectedBrandList.length >= 2;
+    const recommendedHomeLabel =
+        lang === 'TH' ? 'แบรนด์แนะนำ' : lang === 'EN' ? 'Recommended Brands' : '추천 브랜드 홈';
+
     // URL 파라미터가 변경되면 동기화
     useEffect(() => {
         const urlBrand = searchParams.get('brand');
@@ -50,16 +62,16 @@ const BrandMainPage = ({ lang }) => {
             // 브랜드 데이터 (핵심 - 반드시 로드되어야 함)
             try {
                 const brandRes = await fetch(`/api/brands/categorized?t=${Date.now()}`).then(r => r.json());
-                console.log('[BrandPage] API 응답:', brandRes);
                 
                 if (brandRes.success) {
                     setCategorized(brandRes.categorized);
                     
-                    // URL에 브랜드가 있으면 해당 브랜드가 속한 카테고리를 열어줌
+                    // URL에 브랜드(단일 또는 다중)가 있으면 첫 매칭 카테고리를 열어줌
                     const urlBrand = searchParams.get('brand');
-                    if (urlBrand) {
+                    if (urlBrand && urlBrand !== 'All') {
+                        const targetList = parseBrandNames(urlBrand);
                         for (const cat of CATEGORY_NAMES) {
-                            if (brandRes.categorized[cat]?.includes(urlBrand)) {
+                            if (targetList.some((tb) => brandRes.categorized[cat]?.includes(tb))) {
                                 setExpandedCategory(cat);
                                 break;
                             }
@@ -89,6 +101,7 @@ const BrandMainPage = ({ lang }) => {
             }
         };
         initData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // 2. 선택된 브랜드 변경 시 상품 리셋 및 로드
@@ -257,7 +270,7 @@ const BrandMainPage = ({ lang }) => {
                                 onClick={() => { handleBrandClick(null); setExpandedCategory(null); }}
                                 className={`p-4 flex justify-between items-center text-[13px] font-bold cursor-pointer transition-colors ${selectedBrand === null ? 'bg-black text-white' : 'text-gray-700 hover:bg-gray-100'}`}
                             >
-                                <span className="flex items-center gap-2">⭐ 추천 브랜드 홈</span>
+                                <span className="flex items-center gap-2">⭐ {recommendedHomeLabel}</span>
                             </div>
                         </div>
                         <div className="border-b border-gray-200/50">
@@ -317,11 +330,44 @@ const BrandMainPage = ({ lang }) => {
                         <RecommendedBrandsList lang={lang} isAdmin={isAdmin} todayOrders={todayOrders} />
                     ) : (
                         <>
-                            <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                                <h3 className="text-2xl font-black tracking-widest">{selectedBrand === 'All' ? (getTranslation(lang, 'view_all_products') || '전체 상품 보기') : selectedBrand}</h3>
-                                <div className="text-xs font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-                                    {totalItems} Items
+                            <div className="mb-6 border-b border-gray-100 pb-4 space-y-3">
+                                <div className="flex flex-wrap justify-between items-start gap-3">
+                                    <div className="space-y-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleBrandClick(null)}
+                                            className="text-xs font-bold text-gray-500 hover:text-black transition inline-flex items-center gap-1"
+                                        >
+                                            ← {recommendedHomeLabel}
+                                        </button>
+                                        <h3 className="text-2xl font-black tracking-wide">
+                                            {selectedBrand === 'All'
+                                                ? getTranslation(lang, 'view_all_products') || '전체 상품 보기'
+                                                : isMultiSelected
+                                                  ? selectedGroupTitle || formatBrandGroupTitle(selectedBrandList)
+                                                  : selectedBrand}
+                                        </h3>
+                                    </div>
+                                    <div className="text-xs font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full shrink-0">
+                                        {totalItems} Items
+                                    </div>
                                 </div>
+
+                                {/* 다중 브랜드 그룹 전체보기 진입 시 포함된 개별 브랜드 태그 표시 및 개별 전환 지원 */}
+                                {isMultiSelected && (
+                                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                        {selectedBrandList.map((bName) => (
+                                            <button
+                                                key={bName}
+                                                type="button"
+                                                onClick={() => handleBrandClick(bName)}
+                                                className="px-3 py-1 rounded-full bg-gray-100 hover:bg-black hover:text-white text-gray-700 text-xs font-bold transition"
+                                            >
+                                                {bName}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             
                             {products.length === 0 && !loadingProducts ? (
